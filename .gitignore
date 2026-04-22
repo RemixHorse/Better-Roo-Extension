@@ -1,6 +1,7 @@
 node_modules/
 dist-chrome/
 dist-firefox/
+better-roo.xpi
 next-data.json
 restaurants.json
 .claude/

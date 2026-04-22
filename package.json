@@ -8,7 +8,8 @@
     "build": "cross-env BROWSER=chrome vite build",
     "build:chrome": "cross-env BROWSER=chrome vite build",
     "build:firefox": "cross-env BROWSER=firefox vite build",
-    "build:all": "npm run build:chrome && npm run build:firefox",
+    "build:xpi": "npm run build:firefox && node scripts/make-xpi.js",
+    "build:all": "npm run build:chrome && npm run build:xpi",
     "test": "vitest run",
     "test:watch": "vitest"
   },
