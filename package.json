@@ -4,12 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite build --watch",
-    "build": "vite build",
+    "dev": "cross-env BROWSER=chrome vite build --watch",
+    "build": "cross-env BROWSER=chrome vite build",
+    "build:chrome": "cross-env BROWSER=chrome vite build",
+    "build:firefox": "cross-env BROWSER=firefox vite build",
+    "build:all": "npm run build:chrome && npm run build:firefox",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "jimp": "^1.6.1",
     "jsdom": "^29.0.2",
     "vite": "^5.4.0",
