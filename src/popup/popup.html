@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Better Roo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      width: 300px;
+      color: #1a1a1a;
+      background: #fff;
+    }
+
+    .br-header {
+      background: linear-gradient(to right, #00CCBC, #00CC9A);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .br-header-icon {
+      width: 40px;
+      height: 40px;
+      flex-shrink: 0;
+    }
+    .br-header h1 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.2px;
+    }
+    .br-header p {
+      font-size: 11px;
+      color: rgba(255,255,255,0.75);
+      margin-top: 2px;
+    }
+
+    .br-stats {
+      padding: 10px 16px;
+      background: #f7f7f7;
+      border-bottom: 1px solid #eee;
+      font-size: 12px;
+      color: #666;
+    }
+    .br-stats strong { color: #1a1a1a; font-weight: 600; }
+
+    .br-section {
+      padding: 12px 16px 4px;
+    }
+    .br-section-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #999;
+      margin-bottom: 8px;
+    }
+
+    .br-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .br-toggle-row:last-child { border-bottom: none; }
+    .br-toggle-label { font-size: 13px; font-weight: 500; }
+    .br-toggle-sub  { font-size: 11px; color: #999; margin-top: 1px; }
+
+    /* Toggle switch */
+    .br-switch { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+    .br-switch input { opacity: 0; width: 0; height: 0; }
+    .br-slider {
+      position: absolute; inset: 0;
+      background: #ccc;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .br-slider::before {
+      content: '';
+      position: absolute;
+      width: 14px; height: 14px;
+      left: 3px; top: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .br-switch input:checked + .br-slider { background: #00CCBC; }
+    .br-switch input:checked + .br-slider::before { transform: translateX(16px); }
+
+    .br-danger {
+      padding: 12px 16px 16px;
+    }
+    .br-clear-btn {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #e57373;
+      border-radius: 8px;
+      background: #fff;
+      color: #c62828;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .br-clear-btn:hover { background: #ffebee; }
+    .br-clear-btn:disabled { opacity: 0.5; cursor: default; }
+
+    .br-feedback {
+      font-size: 11px;
+      color: #00CCBC;
+      text-align: center;
+      padding: 4px 0 8px;
+      min-height: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="br-header">
+    <img src="icons/icon128.png" alt="" class="br-header-icon" />
+    <div>
+      <h1>Better Roo</h1>
+      <p id="br-version"></p>
+    </div>
+  </div>
+
+  <div class="br-stats" id="br-stats">Loading…</div>
+
+  <div class="br-section">
+    <div class="br-section-label">Card view</div>
+
+    <div class="br-toggle-row">
+      <div>
+        <div class="br-toggle-label">Hide promotional groups</div>
+        <div class="br-toggle-sub">Remove Featured, Top-Rated, etc.</div>
+      </div>
+      <label class="br-switch">
+        <input type="checkbox" id="toggle-promo" />
+        <span class="br-slider"></span>
+      </label>
+    </div>
+
+    <div class="br-toggle-row">
+      <div>
+        <div class="br-toggle-label">Blur card images</div>
+        <div class="br-toggle-sub">Hide food photos on listing page</div>
+      </div>
+      <label class="br-switch">
+        <input type="checkbox" id="toggle-blur" />
+        <span class="br-slider"></span>
+      </label>
+    </div>
+
+    <div class="br-toggle-row">
+      <div>
+        <div class="br-toggle-label">FSA hygiene badges</div>
+        <div class="br-toggle-sub">Show rating on each card</div>
+      </div>
+      <label class="br-switch">
+        <input type="checkbox" id="toggle-hygiene" />
+        <span class="br-slider"></span>
+      </label>
+    </div>
+
+    <div class="br-toggle-row">
+      <div>
+        <div class="br-toggle-label">Shared address badges</div>
+        <div class="br-toggle-sub">Show 📍 when restaurants share an address</div>
+      </div>
+      <label class="br-switch">
+        <input type="checkbox" id="toggle-shared" />
+        <span class="br-slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="br-section">
+    <div class="br-section-label">General</div>
+    <div class="br-toggle-row">
+      <div>
+        <div class="br-toggle-label">Default to table view</div>
+        <div class="br-toggle-sub">Open in table mode each time</div>
+      </div>
+      <label class="br-switch">
+        <input type="checkbox" id="toggle-table" />
+        <span class="br-slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="br-danger">
+    <div class="br-section-label" style="margin-bottom:8px">Danger zone</div>
+    <button class="br-clear-btn" id="btn-clear">Clear all cached data</button>
+    <div class="br-feedback" id="br-feedback"></div>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
