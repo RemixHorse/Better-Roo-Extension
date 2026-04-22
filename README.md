@@ -1,6 +1,13 @@
 # Better Roo
 
-A Chrome extension that enriches Deliveroo eg (Visible food standard ratings in search, shared address detection, filters and table views)
+A Chrome extension that enriches the UK version of Deliveroo and adds
+
+* visible food standard ratings in search
+* shared address detection
+* filters
+* table view
+* remove promotion / targeted content
+* blur restraunt images
 
 When you first install the extension the FSA and shared address badges will not display until you have opened that restraunts menu, because deliveroo doesn't expose the address untill you get to that page.
 Once you've visited it once it's cached.
@@ -59,21 +66,22 @@ Only working for table view. Pin favourite restaurants to the top of the listing
 
 Better Roo is not on the Chrome Web Store. Install it by loading the built extension manually.
 
-### Prerequisites
+Download and extract the contents of the zip to a new folder called "dist", then skip to the "Load in Chrome" section
 
+or..
+### Build it
+## Prerequisites
 - [Node.js](https://nodejs.org/) (v18 or later)
 - Google Chrome
 
-### Build
-
 ```bash
-git clone https://github.com/your-username/better-roo.git
+git clone https://github.com/RemixHorse/Better-Roo-Extension.git
 cd better-roo
 npm install
 npm run build
 ```
 
-This produces a `dist/` folder containing the built extension.
+
 
 ### Load in Chrome
 
