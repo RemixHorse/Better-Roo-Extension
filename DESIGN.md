@@ -5,9 +5,9 @@
 
 ## Context
 
-Deliveroo's search results hide information that matters to users: food hygiene ratings are buried inside the "Allergens and info" section of each restaurant's page, and ghost kitchens (multiple brand names operating from the same address) are invisible. The default card view also makes it difficult to compare restaurants across multiple attributes simultaneously.
+Deliveroo's search results hide information that matters to users: food hygiene ratings are buried inside the "Allergens and info" section of each restaurant's page, and virtual brands (multiple names operating from the same kitchen) are invisible. The default card view also makes it difficult to compare restaurants across multiple attributes simultaneously.
 
-**Better Roo** is a browser extension that enriches the Deliveroo experience by surfacing this data directly on the search results page, adding a filterable table view, and building a local database of restaurant data to detect address-sharing patterns over time.
+**Better Roo** is a Chrome extension that enriches the Deliveroo experience by surfacing this data directly on the search results page, adding a filterable table view, and building a local database of restaurant data to detect shared-address patterns over time.
 
 ---
 
@@ -15,35 +15,33 @@ Deliveroo's search results hide information that matters to users: food hygiene 
 
 | # | Decision | Choice |
 |---|----------|--------|
-| 1 | Target browsers | Chrome, Firefox, Edge (cross-browser) |
+| 1 | Target browser | Chrome only (MV3) |
 | 2 | Target market | UK only — deliveroo.co.uk |
 | 3 | Hygiene rating source | UK FSA Ratings API (ratings.food.gov.uk) |
-| 4 | Restaurant data source | Network intercept (fetch/XHR monkey-patch in page context) |
-| 5 | Ghost kitchen detection | Structural (same address in DB) + bundled known brand list + user-markable |
-| 6 | FSA match strategy | Name + full address (fuzzy), fall back to name + postcode |
-| 7 | Address normalisation | Fuzzy string match (lowercase, strip punctuation, expand St→Street etc.) |
-| 8 | Hygiene rating display | Numeric badge (★ N/5), "Not rated" if no FSA match found |
-| 9 | Ghost kitchen brand list | Bundled JSON + user can mark/unmark any restaurant |
-| 10 | DB persistence | IndexedDB, until manually cleared |
-| 11 | View mode | Toggle: card ⇄ table (remembers preference) |
-| 12 | Table columns | Name, cuisine, distance, ETA, delivery fee, min order, Deliveroo ★, FSA score, ghost kitchen flag |
-| 13 | Table sorting | All columns sortable (click header, toggle asc/desc) |
-| 14 | Filter UI placement | Injected bar above results |
-| 15 | Filter controls | FSA min score, Deliveroo min rating, ghost kitchen toggle, max distance/ETA |
-| 16 | FSA fetch timing | Batch on results load, cached 7 days; always re-fetch on restaurant detail page |
-| 17 | Ghost kitchen card UX | Badge + hover tooltip listing sibling brands and ghost score (e.g. "Score: 0.8") |
-| 18 | Shared address handling | Always flagged; user decides — no dismiss button (keep it simple) |
-| 19 | Extension popup | Stats (record count, last updated) + feature toggles (hygiene display, ghost kitchen detection, table default) |
-| 20 | Restaurant detail page | FSA badge injected prominently at top |
-| 21 | No FSA match display | "Not rated" badge |
-| 22 | Tech stack | Vanilla JS + Vite |
-| 23 | Manifest version | MV3 everywhere |
-| 24 | Network intercept mechanism | Content script injects into page world (world: "MAIN") to monkey-patch window.fetch and XHR |
-| 25 | SPA navigation | Reactive: re-process every time a new restaurant payload is intercepted |
-| 26 | Settings toggles | Hygiene display, ghost kitchen detection, table view default |
-| 27 | Deliveroo resilience | Schema validation on intercepted payloads; banner notification if schema has changed |
-| 28 | Distribution | Open source on GitHub; built to Chrome Web Store standards |
-| 29 | Pinning | User can pin any restaurant — pinned restaurants always sort to the top of both card and table views, persisted in IndexedDB |
+| 4 | Restaurant data source | `__NEXT_DATA__` JSON blob embedded in the page — parsed by `reader.js` |
+| 5 | Shared address detection | Postcode + street number grouping — any two restaurants sharing both are flagged |
+| 6 | FSA match strategy | Name + postcode sent to FSA API; street number used to pick best result when multiple establishments match |
+| 7 | Address normalisation | Lowercase, strip punctuation, expand abbreviations (St→Street, Rd→Road, etc.) |
+| 8 | FSA badge display | `FSA N/5` (colour-coded), `FSA ?` (address not yet known), `FSA —` (no FSA record found) |
+| 9 | DB persistence | IndexedDB, until manually cleared via popup |
+| 10 | View mode | Toggle: card ⇄ table (remembers preference in `chrome.storage.sync`) |
+| 11 | Table columns | Name, FSA score, Deliveroo rating, ETA, delivery fee, shared address badge |
+| 12 | Table sorting | All columns sortable (click header, toggle asc/desc); pinned rows always appear first |
+| 13 | Filter bar placement | Fixed bar at the bottom of the viewport |
+| 14 | Filter controls | FSA min score, Deliveroo min rating, shared address mode (all/shared/unique), max delivery time |
+| 15 | FSA fetch timing | Listing page: cache-first (7 day TTL), misses batched to background worker. Detail page: read directly from `__NEXT_DATA__` |
+| 16 | Shared address card UX | Amber pill badge inline with FSA badge; hover tooltip lists sibling restaurant names |
+| 17 | Shared address handling | Always flagged; no dismiss — user decides what to do with the information |
+| 18 | Extension popup | DB stats (record count, last updated) + feature toggles + clear data button |
+| 19 | Restaurant detail page | FSA badge injected near top if rating is present in page data |
+| 20 | No FSA match display | `FSA —` badge |
+| 21 | Tech stack | Vanilla JS + Vite |
+| 22 | SPA navigation | `history.pushState` patching + `popstate` event listener — re-runs on every route change |
+| 23 | Deliveroo resilience | Schema validation on `__NEXT_DATA__` before reading; banner notification if schema has changed |
+| 24 | Settings toggles | Hygiene display, shared address badges, table view default, hide promotional carousels, blur card images |
+| 25 | Distribution | Open source on GitHub; GitHub Actions builds and zips on tag push |
+| 26 | Pinning | User can pin restaurants — pinned rows always sort to the top of the table view, persisted in IndexedDB |
+| 27 | Flash prevention | `early.js` runs at `document_start` and hides the card grid immediately if table mode is active, preventing skeleton flash |
 
 ---
 
@@ -52,28 +50,32 @@ Deliveroo's search results hide information that matters to users: food hygiene 
 ### Component Overview
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│ Browser Tab (deliveroo.co.uk)                           │
-│                                                         │
-│  ┌─────────────────────┐   postMessage    ┌──────────┐  │
-│  │ inject.js           │ ──────────────►  │          │  │
-│  │ (world: MAIN)       │                  │          │  │
-│  │ - Wraps fetch/XHR   │                  │content.js│  │
-│  │ - Filters Deliveroo │                  │(isolated)│  │
-│  │   API responses     │                  │          │  │
-│  └─────────────────────┘                  │- IndexedDB│ │
-│                                           │- UI inject│ │
-│                                           │- FSA req  │ │
-│                                           └─────┬─────┘  │
-└─────────────────────────────────────────────────┼───────┘
-                                                  │ chrome.runtime.sendMessage
-                                    ┌─────────────▼────────────┐
-                                    │ background.js            │
-                                    │ (Service Worker)         │
-                                    │ - FSA API fetch (CORS)   │
-                                    │ - chrome.storage.sync    │
-                                    │   (user settings)        │
-                                    └──────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│ Browser Tab (deliveroo.co.uk)                                │
+│                                                              │
+│  <script id="__NEXT_DATA__">{ ... }</script>                 │
+│            │                                                 │
+│            │ read by                                         │
+│            ▼                                                 │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │ content/index.js (isolated world)                   │    │
+│  │                                                     │    │
+│  │  reader.js     — parses __NEXT_DATA__               │    │
+│  │  db.js         — IndexedDB (restaurants, fsa_cache, │    │
+│  │                             user_flags)             │    │
+│  │  matcher.js    — shared address detection           │    │
+│  │  fsa.js        — cache-first FSA lookup             │    │
+│  │  ui/           — filter bar, table, badges, modal   │    │
+│  └────────────────────────┬────────────────────────────┘    │
+└───────────────────────────┼──────────────────────────────────┘
+                            │ chrome.runtime.sendMessage (FSA_LOOKUP)
+              ┌─────────────▼────────────────┐
+              │ background/index.js           │
+              │ (Service Worker)              │
+              │ - FSA API fetch (CORS)        │
+              │ - chrome.storage.sync         │
+              │   (settings)                  │
+              └───────────────────────────────┘
 
 ┌──────────────────────┐
 │ popup.html / popup.js│
@@ -83,9 +85,9 @@ Deliveroo's search results hide information that matters to users: food hygiene 
 └──────────────────────┘
 ```
 
-### Why inject.js must run in world: MAIN
+### Why `__NEXT_DATA__` instead of network interception
 
-Deliveroo is a React SPA. Its `fetch` calls are made from page JS context. A content script in the isolated world cannot intercept them — only a script running in the page's own JavaScript context can wrap `window.fetch`. MV3 supports this via `"world": "MAIN"` in `content_scripts` (Chrome 111+, Firefox 128+).
+Deliveroo renders its restaurant data server-side into a `<script id="__NEXT_DATA__">` JSON blob on every page load. This means the full restaurant payload — including names, IDs, addresses, ratings, and delivery info — is available synchronously in the DOM as soon as the page loads, with no need to intercept fetch/XHR calls. `reader.js` simply parses this blob. The FSA rating for a restaurant's detail page is also embedded in `__NEXT_DATA__` via Deliveroo's own hygiene layout block.
 
 ---
 
@@ -100,71 +102,96 @@ better-roo/
 │   ├── background/
 │   │   └── index.js          # Service worker: FSA API proxy, settings storage
 │   ├── content/
-│   │   ├── inject.js         # Page-world fetch/XHR interceptor
-│   │   ├── index.js          # Orchestrator: receives data, drives UI
-│   │   ├── db.js             # IndexedDB wrapper (restaurants, FSA cache, user flags)
-│   │   ├── matcher.js        # Ghost kitchen detection logic
-│   │   ├── fsa.js            # FSA API client (requests via background)
-│   │   ├── addressNorm.js    # Fuzzy address normalisation
+│   │   ├── early.js          # document_start: hides card grid to prevent table-mode flash
+│   │   ├── index.js          # Orchestrator: reads page, drives DB + UI
+│   │   ├── reader.js         # __NEXT_DATA__ parser for listing and detail pages
+│   │   ├── db.js             # IndexedDB wrapper (restaurants, fsa_cache, user_flags)
+│   │   ├── matcher.js        # Shared address detection
+│   │   ├── fsa.js            # FSA cache + background worker dispatch
+│   │   ├── addressNorm.js    # Postcode extraction, street number extraction, normalisation
+│   │   ├── timeAgo.js        # Relative time formatting
 │   │   └── ui/
-│   │       ├── filterBar.js  # Injected filter controls above results
+│   │       ├── filterBar.js  # Fixed bottom bar: filter chips + card/table toggle
 │   │       ├── table.js      # Table view renderer + sorting
-│   │       ├── cardBadge.js  # Hygiene + ghost kitchen badges on cards
-│   │       └── detailBadge.js # FSA badge on restaurant detail page
+│   │       ├── cardBadge.js  # FSA + shared address pills on listing cards
+│   │       ├── detailBadge.js # FSA badge on restaurant detail page
+│   │       ├── modal.js      # Info modal (features, privacy)
+│   │       └── schemaBanner.js # Banner shown when __NEXT_DATA__ schema has changed
 │   ├── popup/
 │   │   ├── popup.html
 │   │   └── popup.js
-│   └── data/
-│       └── ghost-kitchens.json  # Bundled known ghost kitchen brand names
+│   └── icons/
+│       ├── icon16.png
+│       ├── icon48.png
+│       └── icon128.png
 ```
 
 ---
 
 ## Key Flows
 
-### 1. Restaurant Data Interception
+### 1. Page Data Reading
 
-1. `inject.js` wraps `window.fetch` in the page context.
-2. On every response, it checks the URL against known Deliveroo API patterns (to be discovered by inspecting DevTools network tab on deliveroo.co.uk during development).
-3. If the response matches, it clones and reads the JSON body.
-4. Validates against an expected schema (has `restaurants[].address`, `restaurants[].name`, etc.).
-   - If schema mismatch: posts a `SCHEMA_CHANGED` message → `content.js` shows a degraded-mode notification.
-5. Posts `RESTAURANTS_FETCHED` message with the payload to `content.js`.
+1. On `DOMContentLoaded` (or immediately if already loaded), `index.js` patches `history.pushState` and calls `onRouteChange` for the current path.
+2. On every route change, `onRouteChange` checks the path:
+   - `/restaurants/…` → `handleListingPage()`
+   - `/menu/…` → `handleDetailPage()`
+3. `reader.js` validates the `__NEXT_DATA__` shape before reading. If validation fails, `schemaBanner.js` shows a degraded-mode notification.
 
-### 2. Storing & Ghost Kitchen Detection
+### 2. Listing Page
 
-1. `content.js` receives `RESTAURANTS_FETCHED`.
-2. Calls `db.js` to upsert each restaurant by Deliveroo's internal ID.
-3. After upsert, calls `matcher.js`:
-   - **Structural**: query IndexedDB for all restaurants sharing the same normalised address. Any address with ≥2 entries is a ghost kitchen cluster.
-   - **Brand list**: check each restaurant name against `ghost-kitchens.json` (case-insensitive).
-   - **User flags**: check IndexedDB `user_flags` store for manually marked entries.
-4. Tags each restaurant object with `{ isGhostKitchen: bool, siblingBrands: string[] }`.
+1. `reader.js` reads all restaurant blocks from `__NEXT_DATA__`, deduplicating by restaurant ID. Fields captured: `id`, `drn_id`, `name`, `href`, `rating`, `deliveryTimeMin`, `deliveryFee`, and related display fields.
+2. Existing DB records are fetched and merged with fresh listing data (DB address fields are preserved — they're richer, written by detail page visits).
+3. All restaurants are upserted to the `restaurants` IndexedDB store.
+4. `matcher.js` runs `detectSharedAddresses` over the merged set (listing + all DB-cached restaurants, so currently-closed brands still contribute as siblings).
+5. `fsa.js` runs cache-first FSA lookup (see FSA flow below).
+6. `filterBar.js` and `cardBadge.js` are initialised with the enriched data.
 
-### 3. FSA Hygiene Lookup
+### 3. Detail Page
 
-1. For each restaurant in the current results batch, `fsa.js` checks IndexedDB for a cached FSA record (expires after 7 days).
-2. Cache misses are batched and sent to `background.js` via `chrome.runtime.sendMessage`.
-3. `background.js` calls the FSA API: `https://api.ratings.food.gov.uk/Establishments?name={name}&address={address}&pageSize=5`.
-4. Fuzzy-matches the top result using `addressNorm.js`. Falls back to name + postcode if full address fails.
-5. Returns `{ score: 0-5 | null, ratingDate: string | null }` per restaurant.
-6. `content.js` caches results in IndexedDB and triggers UI refresh.
+1. `reader.js` reads the restaurant record from `__NEXT_DATA__` — this includes `address1`, `postcode`, `neighborhood`, and `city`, which the listing page does not expose.
+2. The restaurant is upserted to IndexedDB, enriching the address fields for future shared address detection.
+3. `readDetailFsaRating()` scans `__NEXT_DATA__` for Deliveroo's own hygiene layout block (`actionId: "layout-list-hygiene-rating"`). The FSA score is extracted from the rating image URL (`fhrs_N@3x.png`) and the date from the accompanying text spans.
+4. If a rating is found it is written to `fsa_cache` and `detailBadge.js` renders the FSA badge on the page.
 
-### 4. UI Injection
+### 4. FSA Hygiene Lookup (Listing Page)
 
-**Search results page** (`/area/...`):
-- `filterBar.js` is injected above the results container. Contains: FSA min score slider, Deliveroo min rating slider, ghost kitchen toggle (Show all / Hide GK / Only GK), max distance/ETA dropdown.
-- A card/table toggle button is added to the filter bar.
-- In **card mode**: `cardBadge.js` injects FSA badge and ghost kitchen badge onto each Deliveroo card. Ghost kitchen badge opens a tooltip on hover listing sibling brands. A pin button (📌) is injected on each card; pinned cards are re-ordered to the top of the results container.
-- In **table mode**: `table.js` hides Deliveroo's native card grid (display:none) and renders a sortable HTML table. Each row has a "Flag as ghost kitchen" button and a pin toggle. Pinned rows always appear above the sorted results regardless of column sort state.
+1. For each restaurant in the current listing, `fsa.js` checks `fsa_cache` in IndexedDB. Cached entries with a non-null score and age under 7 days are used directly.
+2. Cache misses (restaurants with an `address1` but no valid cached score) are batched and sent to the background service worker as a single `FSA_LOOKUP` message.
+3. The background worker calls `https://api.ratings.food.gov.uk/Establishments?name={name}&address={postcode}&pageSize=5`.
+4. If multiple establishments are returned, the one whose `AddressLine1` contains the restaurant's street number is preferred; otherwise the first result is used.
+5. `RatingValue` is parsed as an integer 0–5; non-numeric values ("Exempt", "AwaitingInspection") produce `null`.
+6. Results are written back to `fsa_cache` and the UI is updated.
 
-**Restaurant detail page**:
-- `detailBadge.js` detects the page type, retrieves the FSA record from IndexedDB (or triggers a fresh fetch), and injects a hygiene rating panel near the top of the page.
+### 5. Shared Address Detection
 
-### 5. Settings & Popup
+`matcher.js` runs a single-pass grouping algorithm:
 
-- `chrome.storage.sync` stores: `{ hygieneEnabled, ghostKitchenEnabled, tableViewDefault }`.
-- Popup reads these on open, renders toggles. Changes are broadcast to active Deliveroo tabs via `chrome.tabs.sendMessage`.
+1. Each restaurant's `address1` is parsed for a postcode and a street number (first numeric token, scanning the whole string to handle prefixed formats like `"Whitehall Grill 10 Downing Street"`).
+2. A `Map` is built keyed by `"{postcode}|{streetNumber}"`.
+3. Any restaurant that shares a key with at least one other restaurant is flagged `isSharedAddress: true`, with `siblingNames` listing the co-located restaurant names.
+4. Restaurants with no parseable postcode or street number are flagged `false` and excluded from grouping.
+
+### 6. UI — Filter Bar
+
+- A fixed bar is appended to the bottom of `document.body`, pinned via `position: fixed`.
+- Contains: Better Roo label, `?` info button (opens modal), four filter chips (FSA, Rating, Address, Delivery), and a card/table view toggle.
+- Each chip opens a popover of options above the bar. The active filter value is shown inline on the chip.
+- Filtering in card mode dims non-matching cards rather than hiding them. Filtering in table mode re-renders the table with only matching rows.
+
+### 7. UI — Cards
+
+- `cardBadge.js` processes each Deliveroo card in the DOM, matched by the restaurant's `href`.
+- A `br-badge-row` flex container is appended inside the card's image wrapper, with `isolation: isolate` to scope the stacking context and prevent badges appearing above Deliveroo's fixed header.
+- FSA badge: colour-coded pill (`FSA 5` green → `FSA 0` red, `FSA ?` grey for unvisited, `FSA —` for no record).
+- Shared address badge: amber `Shared Address` pill with a hover tooltip listing sibling names. `pointer-events: auto` and `e.stopPropagation()` are applied to make the tooltip work inside anchor elements.
+- `blurCardImages` setting applies a CSS blur to card background images via a body class.
+
+### 8. Settings & Popup
+
+- `chrome.storage.sync` stores: `{ hygieneEnabled, sharedAddressEnabled, tableViewDefault, hidePromotionalGroups, blurCardImages }`.
+- The popup reads settings on open and renders toggles. Changes are written via the background worker and broadcast to all open Deliveroo tabs via `chrome.tabs.sendMessage`.
+- The popup also displays DB stats (restaurant count, last updated) read from `chrome.storage.local`, written by the content script after each listing page load.
 
 ---
 
@@ -173,119 +200,44 @@ better-roo/
 **`restaurants` store** — keyed by Deliveroo restaurant ID
 ```js
 {
-  id: string,            // Deliveroo internal ID
+  id: number,
+  drn_id: string | null,
+  brand_drn_id: string | null,
   name: string,
-  address: string,       // full address
-  postcode: string,
-  lat: number,
-  lng: number,
-  cuisine: string,
-  deliverooRating: number,
-  priceRange: string,
-  lastSeen: timestamp,   // for UI sorting/freshness
+  href: string | null,
+  rating: string | null,
+  ratingCount: string | null,
+  distance: string | null,
+  deliveryTimeMin: string | null,
+  deliveryTimeLabel: string | null,
+  deliveryFee: string | null,
+  // Written on detail page visit:
+  address1: string | null,
+  postcode: string | null,
+  neighborhood: string | null,
+  city: string | null,
+  uname: string | null,
+  lastSeen: timestamp,
 }
 ```
 
 **`fsa_cache` store** — keyed by Deliveroo restaurant ID
 ```js
 {
-  restaurantId: string,
-  fsaScore: number | null,   // null = "Not rated"
-  ratingDate: string | null,
-  fetchedAt: timestamp,      // expires after 7 days
+  restaurantId: number,
+  score: number | null,   // 0–5, or null (exempt / not inspected / no match)
+  ratingDate: timestamp | null,
+  cachedAt: timestamp,    // TTL: 7 days
 }
 ```
 
 **`user_flags` store** — keyed by Deliveroo restaurant ID
 ```js
 {
-  restaurantId: string,
-  isGhostKitchen: boolean,   // user-marked
-  isPinned: boolean,         // forces restaurant to top of results
+  restaurantId: number,
+  isPinned: boolean,      // forces restaurant to top of table view
 }
 ```
-
----
-
-## Ghost Kitchen Detection Logic
-
-### Classification Types
-
-There are two distinct ghost kitchen roles, treated differently in the UI:
-
-| Type | Description | Example |
-|------|-------------|---------|
-| `ghost_brand` | A virtual brand with no physical presence — it operates from another restaurant's kitchen | Bangtan, SoBe Burger |
-| `ghost_parent` | A real restaurant whose kitchen also runs ghost brands | Galitos |
-| `clean` | No ghost kitchen association detected | — |
-
-### Ghost Score
-
-Each restaurant is assigned a `ghostScore` (0.0–1.0) based on weighted signals. No single low-confidence signal can fire alone.
-
-| Signal | Weight | Notes |
-|--------|--------|-------|
-| Shared `brandDrnId` with another restaurant | +0.6 | Deliveroo's own grouping — very reliable |
-| Slug matches `-at-{other-slug}` pattern | +0.4 | Explicit naming convention |
-| In bundled known ghost-kitchen brand list | +0.5 | Curated, high confidence |
-| Same postcode AND same street number | +0.5 | Strong structural signal — pinpoints same building. Confirmed catches El Kervan/EKB and PizzaExpress/Mac&Wings in the wild |
-| Same postcode only | +0.1 | Weak alone — never fires in isolation |
-| User-flagged as ghost kitchen | → 1.0 | Hard override |
-
-**Threshold:** `ghostScore >= 0.4` → classified as `ghost_brand`.
-
-> **Note on street number extraction:** Deliveroo address strings can include range formats (e.g. `146/148 High Street`) — extract the first numeric token only. `brandDrnId` may also be an empty string rather than `null`; treat both as absent.
-
-### Ghost Parent Detection (Two-Pass)
-
-Ghost parents cannot self-identify — they have no `brandDrnId` and appear on the surface like any normal restaurant. They are detected in a second pass after ghost brands are confirmed:
-
-```
-Pass 1 — score each restaurant individually:
-  ghostScore = sum of applicable signal weights
-  if ghostScore >= 0.4 → ghost_brand
-
-Pass 2 — detect ghost parents:
-  for each restaurant classified as clean:
-    cluster = all ghost_brands sharing same postcode + street number
-    if cluster.length >= 1 → ghost_parent
-      siblingBrands = cluster names
-```
-
-### Detection Formula
-
-```
-classify(restaurant, allRestaurants) =
-  if userFlags[restaurant.id] → ghost_brand (score: 1.0)
-  
-  score = 0
-  score += sharedBrandDrnId(restaurant, allRestaurants)   ? 0.6 : 0
-  score += slugHasAtPattern(restaurant.href)               ? 0.4 : 0
-  score += knownBrands.includes(restaurant.name)           ? 0.5 : 0
-  score += samePostcodeAndNumber(restaurant, allRestaurants) ? 0.3 : 0
-  score += samePostcodeOnly(restaurant, allRestaurants)    ? 0.1 : 0
-  score = min(score, 1.0)
-  
-  if score >= 0.4 → ghost_brand
-  
-  // Pass 2
-  ghostBrandsAtAddress = confirmed ghost_brands with same postcode + street number
-  if ghostBrandsAtAddress.length >= 1 → ghost_parent
-  
-  → clean
-```
-
-### UI Treatment
-
-| Type | Badge | Tooltip |
-|------|-------|---------|
-| `ghost_brand` | 👻 Ghost Kitchen | "This is a virtual brand. Also at this address: [siblings] · Score: [0.00]" |
-| `ghost_parent` | 🏠 Hosts Ghost Brands | "This kitchen also operates: [ghost brand names] · Score: [0.00]" |
-| `clean` | — | — |
-
-The score shown in the tooltip is the raw `ghostScore` value (0.0–1.0, 2 decimal places). This lets power users understand why a restaurant was flagged and gives them context when deciding whether to manually override via user flags.
-
-Sibling brands = all restaurants in the same address cluster, excluding self.
 
 ---
 
@@ -293,22 +245,10 @@ Sibling brands = all restaurants in the same address cluster, excluding self.
 
 - Base URL: `https://api.ratings.food.gov.uk/`
 - Key endpoint: `GET /Establishments?name=X&address=Y&pageSize=5`
-- Requires header: `Accept: application/json; version=2`
+- Required headers: `Accept: application/json; version=2`, `x-api-version: 2`
 - Free, no API key required
-- Rate limit: unknown — batch requests by page load, not per keystroke
-- Rating field: `RatingValue` (string "1"–"5", "Exempt", "AwaitingInspection")
-
----
-
-## Endpoint Discovery Strategy
-
-Since Deliveroo's API is undocumented, the first development step is:
-1. Open deliveroo.co.uk in Chrome DevTools > Network tab
-2. Filter by `Fetch/XHR`, navigate the site, observe URLs matching `/api/` or `/zone/` patterns
-3. Identify the response that contains restaurant listings with full address fields
-4. Hardcode those URL patterns into `inject.js` as the intercept filter
-
-The interceptor should be URL-pattern-based (not a catch-all) to minimise overhead.
+- Rating field: `RatingValue` (string `"0"`–`"5"`, `"Exempt"`, `"AwaitingInspection"`, etc.)
+- Rate limit: unknown — requests are batched per listing page load, not per keystroke
 
 ---
 
@@ -318,30 +258,33 @@ The interceptor should be URL-pattern-based (not a catch-all) to minimise overhe
 {
   "permissions": ["storage", "alarms"],
   "host_permissions": [
-    "https://www.deliveroo.co.uk/*",
+    "*://deliveroo.co.uk/*",
     "https://api.ratings.food.gov.uk/*"
   ]
 }
 ```
 
-Minimal permissions footprint for store submission.
+Minimal permissions footprint. `alarms` is declared for future scheduled FSA cache refresh.
 
 ---
 
 ## Verification Plan
 
-1. **Unit tests** (Vitest): `addressNorm.js`, `matcher.js`, FSA response parsing.
+1. **Unit tests** (Vitest): `addressNorm.js`, `matcher.js`, `reader.js`, `timeAgo.js`.
 2. **Manual smoke test**:
    - Load extension unpacked in Chrome.
-   - Navigate to deliveroo.co.uk.
-   - Verify filter bar appears above results.
-   - Verify FSA badges appear on cards after a few seconds.
-   - Verify ghost kitchen badge appears on any restaurant sharing an address.
+   - Navigate to deliveroo.co.uk and open a restaurant listing.
+   - Verify the filter bar appears at the bottom of the page.
+   - Verify FSA badges appear on cards (green/amber/red pills or `FSA ?` for unvisited).
+   - Visit a restaurant's menu page — verify the shared address badge appears on return if it shares an address.
+   - Verify shared address pill tooltip lists the co-located restaurant names.
    - Toggle to table view — verify all columns render and sorting works.
-   - Click into a restaurant — verify FSA badge at top of detail page.
-   - Open popup — verify record count and toggles.
+   - Click into a restaurant — verify FSA badge appears near the top of the detail page.
+   - Open popup — verify record count, last-updated time, and all toggles work.
 3. **Edge cases**:
-   - Restaurant with no FSA match → "Not rated" badge.
-   - Address shared by 3 brands → all three flagged, tooltip lists the other two.
-   - Settings toggle off hygiene → badges disappear across all open Deliveroo tabs.
-   - Schema change simulation → notification banner appears.
+   - Restaurant with no FSA match → `FSA —` badge.
+   - Restaurant whose menu hasn't been visited → `FSA ?` badge.
+   - Two or more restaurants at the same address → all flagged, tooltip lists the others.
+   - Settings toggle off hygiene → FSA badges disappear across all open Deliveroo tabs.
+   - Settings toggle blur images → card images blur immediately.
+   - Schema change simulation → notification banner appears, extension degrades gracefully.
