@@ -59,12 +59,13 @@ Only working for table view. Pin favourite restaurants to the top of the listing
 
 Better Roo is not on the Chrome Web Store. Install it by loading the built extension manually.
 
-### Prerequisites
+Download and extract the contents of the zip to a new folder called "dist", then skip to the "Load in Chrome" section
 
+or..
+### Build it
+## Prerequisites
 - [Node.js](https://nodejs.org/) (v18 or later)
 - Google Chrome
-
-### Build
 
 ```bash
 git clone https://github.com/your-username/better-roo.git
@@ -73,7 +74,7 @@ npm install
 npm run build
 ```
 
-This produces a `dist/` folder containing the built extension.
+
 
 ### Load in Chrome
 
