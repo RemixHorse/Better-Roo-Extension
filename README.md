@@ -1,6 +1,13 @@
 # Better Roo
 
-A Chrome extension that enriches Deliveroo eg (Visible food standard ratings in search, shared address detection, filters and table views)
+A Chrome extension that enriches the UK version of Deliveroo and adds
+
+* visible food standard ratings in search
+* shared address detection
+* filters
+* table view
+* remove promotion / targeted content
+* blur restraunt images
 
 When you first install the extension the FSA and shared address badges will not display until you have opened that restraunts menu, because deliveroo doesn't expose the address untill you get to that page.
 Once you've visited it once it's cached.
