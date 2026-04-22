@@ -68,7 +68,7 @@ or..
 - Google Chrome
 
 ```bash
-git clone https://github.com/your-username/better-roo.git
+git clone https://github.com/RemixHorse/Better-Roo-Extension.git
 cd better-roo
 npm install
 npm run build
