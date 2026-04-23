@@ -23,15 +23,17 @@ A Chrome and Firefox extension that replaces and enriches the UK Deliveroo resta
 ### 🧪 FSA Hygiene Ratings
 
 <table><tr>
-<td width="40%" style="padding:0"><img width="100%" alt="FSA badges on restaurant cards" src="https://github.com/user-attachments/assets/d49f510e-02e2-435e-90d9-d7e5b63d7cc3" /></td>
+<td width="40%" style="padding:0"> <img width="301" height="234" alt="chrome_1FFeHXealO" src="https://github.com/user-attachments/assets/91ef2ad0-2697-4b43-b655-581a8d8dc5f6" />
+ </td>
 <td valign="top">Food Standards Agency ratings are fetched and displayed as a badge on every restaurant card and on the restaurant's menu page. Ratings are colour-coded from green (5/5) to red (0–1/5). The badge shows <code>FSA ?</code> for restaurants whose menu you haven't opened yet, and <code>FSA —</code> for restaurants with no FSA record (e.g. exempt or not yet inspected). Hover the badge to see when the rating was last issued.</td>
 </tr></table>
 
-### 📍 Shared Address Detection
+### 📍 Shared Address Detection / 'Ghost kitchens'
 
 <table><tr>
-<td width="40%" style="padding:0"><img width="100%" alt="Shared Address badge on a restaurant card" src="https://github.com/user-attachments/assets/0e120bb7-4449-4a73-9d2d-2a9013ef675f" /></td>
-<td valign="top">Some restaurants are virtual brands — different names and menus operating from the same kitchen. A <strong>Shared Address</strong> badge appears on any restaurant that shares a physical address with another on the listing. Hover the badge to see which restaurants are co-located. Detection improves the more menus you browse, as address data is collected from menu page visits.</td>
+<td width="40%" style="padding:0"> <img width="302" height="260" alt="TXuUFrEOdC" src="https://github.com/user-attachments/assets/af34f70d-53b5-4791-b364-6ce12fb1372b" />
+ </td>
+<td valign="top">Some restaurants are virtual brands — different names and menus operating from the same kitchen. A <strong>Shared Address</strong> badge appears on any restaurant that shares a physical address with another on the listing. Hover the badge to see which restaurants are co-located. <br> Bear in mind there are legitimate cases where independent restraunts share an address, eg food courts or malls</td>
 </tr></table>
 
 ### 🔽 Filter Bar
@@ -58,14 +60,16 @@ A Chrome and Firefox extension that replaces and enriches the UK Deliveroo resta
 ### 🔍 Auto-Scan
 
 <table><tr>
-<td width="40%" style="padding:0"><img width="100%" alt="Auto-scan progress indicator in filter bar" src="" /></td>
+<td width="40%" style="padding:0"> <img width="934" height="282" alt="idyINVwtGq" src="https://github.com/user-attachments/assets/57950766-2218-459a-9d3c-f3140e13aa01" />
+ </td>
 <td valign="top">Enable auto-scan in the extension menu to automatically fetch addresses and FSA ratings for every unvisited restaurant on the listing. A progress counter appears in the filter bar as it works. Scans run at one restaurant every 3 seconds to avoid rate limiting — enable <strong>Scan Fast</strong> to drop this to 1 second if you're in a hurry (not recommended for prolonged use).</td>
 </tr></table>
 
 ### Other
 
 <table><tr>
-<td width="40%" style="padding:0"><img width="100%" alt="Extension popup showing toggles" src="https://github.com/user-attachments/assets/46d935ca-0b69-4d70-886d-e6c39bc17340" /></td>
+<td width="40%" style="padding:0"> <img width="298" height="601" alt="fuAkTtSwFC" src="https://github.com/user-attachments/assets/45246012-9bf1-447d-87c6-9b2da199a26b" />
+ </td>
 <td valign="top">
 
 - Blur card images if you'd rather order without the food photography
@@ -78,7 +82,7 @@ A Chrome and Firefox extension that replaces and enriches the UK Deliveroo resta
 
 ## Installation
 
-Better Roo is not on the Chrome Web Store. Install it by loading the built extension manually.
+Better Roo is not on the Chrome Web Store (yet). Install it by loading the built extension manually.
 
 ### Build it
 
