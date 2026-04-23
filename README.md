@@ -1,7 +1,3 @@
-This was built as a learning case for agentic coding, i'm not the biggest fan, but it's worth keeping up with the developer landscape. not a single character in this codebase was written by a human.
-
-It is however, fully working, tested and quite useful, at least for me (i don't like ghost kitchens!)
-
 # Better Roo
 
 A Chrome and Firefox extension that replaces and enriches the UK Deliveroo restaurant listing with:
@@ -13,6 +9,10 @@ A Chrome and Firefox extension that replaces and enriches the UK Deliveroo resta
 - Auto-scan to pre-fetch ratings and addresses in the background
 
 ---
+
+*This was built as a learning case for agentic coding, i'm not the biggest fan, but it's worth keeping up with the developer landscape. not a single character in this codebase was written by a human.
+
+It is however, fully working, tested and quite useful, at least for me (i don't like ghost kitchens!)*
 
 ## Features
 
