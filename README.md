@@ -14,6 +14,8 @@ A Chrome and Firefox extension that replaces and enriches the UK Deliveroo resta
 
 > It is however, fully working, tested and quite useful, at least for me (i don't like ghost kitchens!)
 
+** Any brands mentioned or visible in images below have no relation to this project, and are only for illustration purposes **
+
 ## Features
 
 ### 🃏 Custom Card Grid
