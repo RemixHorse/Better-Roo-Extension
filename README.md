@@ -60,7 +60,8 @@ A Chrome and Firefox extension that replaces and enriches the UK Deliveroo resta
 ### 📌 Pin to Top
 
 <table><tr>
-<td width="40%" style="padding:0"><img width="100%" alt="Pinned restaurant at top of card grid" src="" /></td>
+<td width="40%" style="padding:0"> <img width="1209" height="446" alt="chrome_gm8TnbTOoF" src="https://github.com/user-attachments/assets/144721ce-17a4-4b38-85a5-de60787be1cf" />
+ </td>
 <td valign="top">Pin favourite restaurants to the top of the listing in both card and table view. Pinned restaurants float above open ones, and closed restaurants always sink to the bottom. Pins persist across visits via local storage.</td>
 </tr></table>
 
