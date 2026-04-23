@@ -76,7 +76,7 @@ A Chrome and Firefox extension that replaces and enriches the UK Deliveroo resta
 ### Other
 
 <table><tr>
-<td width="40%" style="padding:0"> <img width="298" height="601" alt="fuAkTtSwFC" src="https://github.com/user-attachments/assets/45246012-9bf1-447d-87c6-9b2da199a26b" />
+<td width="40%" style="padding:0"> <img width="200" height="100" alt="fuAkTtSwFC" src="https://github.com/user-attachments/assets/45246012-9bf1-447d-87c6-9b2da199a26b" />
  </td>
 <td valign="top">
 
