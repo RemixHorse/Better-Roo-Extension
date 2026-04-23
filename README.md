@@ -68,7 +68,7 @@ A Chrome and Firefox extension that replaces and enriches the UK Deliveroo resta
 ### 🔍 Auto-Scan
 
 <table><tr>
-<td width="40%" style="padding:0"> <img width="934" height="282" alt="idyINVwtGq" src="https://github.com/user-attachments/assets/57950766-2218-459a-9d3c-f3140e13aa01" />
+<td width="40%" style="padding:0"> <img width="400" height="120" alt="idyINVwtGq" src="https://github.com/user-attachments/assets/57950766-2218-459a-9d3c-f3140e13aa01" />
  </td>
 <td valign="top">Enable auto-scan in the extension menu to automatically fetch addresses and FSA ratings for every unvisited restaurant on the listing. A progress counter appears in the filter bar as it works. Scans run at one restaurant every 3 seconds to avoid rate limiting — enable <strong>Scan Fast</strong> to drop this to 1 second if you're in a hurry (not recommended for prolonged use).</td>
 </tr></table>
