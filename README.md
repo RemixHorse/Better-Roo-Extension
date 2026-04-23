@@ -39,7 +39,8 @@ A Chrome and Firefox extension that replaces and enriches the UK Deliveroo resta
 ### 🔽 Filter Bar
 
 <table><tr>
-<td width="40%" style="padding:0"><img width="100%" alt="Filter bar above restaurant listing" src="https://github.com/user-attachments/assets/9f08ee72-77ca-4169-9b25-23ee24cb1c5f" /></td>
+<td width="40%" style="padding:0"> <img width="1208" height="656" alt="chrome_jQpRMlxbXN" src="https://github.com/user-attachments/assets/41ce0193-2717-4d8b-942b-c9305649b896" />
+ </td>
 <td valign="top">A persistent filter bar lets you narrow results by FSA score, Deliveroo rating, delivery time, and shared address status. Non-matching cards are hidden and the grid reflows. In table view, the same filters apply to the rows. Sort by any column directly from the filter bar in card view, or by clicking column headers in table view.</td>
 </tr></table>
 
