@@ -15,7 +15,8 @@ A Chrome and Firefox extension that replaces and enriches the UK Deliveroo resta
 ### 🃏 Custom Card Grid
 
 <table><tr>
-<td width="40%" style="padding:0"><img width="100%" alt="Custom card grid showing restaurant cards with FSA badges" src="" /></td>
+<td width="40%" style="padding:0"> <img width="1233" height="831" alt="chrome_XBbaYP917y" src="https://github.com/user-attachments/assets/819add01-2d29-456e-940f-b0a0d1ed1d46" />
+ </td>
 <td valign="top">Deliveroo's listing is replaced with a clean, lightweight card grid built from scratch. Cards support sorting by rating, ETA, delivery fee, FSA score, distance, or name — without any page reload. Non-matching cards are hidden entirely when filters are applied, reflowing the grid naturally. Column count is configurable (2–5) from the extension menu. Cards load instantly from a local snapshot on repeat visits, with fresh data reconciled silently in the background.</td>
 </tr></table>
 
