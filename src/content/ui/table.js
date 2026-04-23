@@ -17,7 +17,7 @@ document.addEventListener('click', () => closePopover());
 
 // --- Public API ---
 
-export async function renderTable(restaurants, sharedAddressResults, fsaRatings) {
+export async function renderTable(restaurants, sharedAddressResults, fsaRatings, pinFlags = null) {
   _restaurants = restaurants;
   _sharedAddressResults = sharedAddressResults;
   _fsaRatings = fsaRatings;
@@ -27,12 +27,18 @@ export async function renderTable(restaurants, sharedAddressResults, fsaRatings)
   hideGrid();
   injectStyles();
 
+  const isRebuild = !!document.getElementById('better-roo-table-wrap');
   document.getElementById('better-roo-table-wrap')?.remove();
 
-  const pinFlags = await loadPinFlags(restaurants);
-  const wrap = buildTable(pinFlags);
+  const resolvedPins = pinFlags ?? await loadPinFlags(restaurants);
+  const wrap = buildTable(resolvedPins);
+  if (isRebuild) wrap.style.opacity = '0';
   const grid = document.querySelector(GRID_SELECTOR);
   grid?.parentElement.insertBefore(wrap, grid);
+  if (isRebuild) requestAnimationFrame(() => {
+    wrap.style.transition = 'opacity 0.2s';
+    wrap.style.opacity = '1';
+  });
 }
 
 export function destroyTable() {

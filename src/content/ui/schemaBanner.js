@@ -49,4 +49,9 @@ export function showSchemaBanner() {
   banner.appendChild(msg);
   banner.appendChild(dismiss);
   document.body.prepend(banner);
+
+  // Restore Deliveroo's grid since our replacement won't be rendered
+  document.getElementById('better-roo-grid-hide')?.remove();
+  const grid = document.querySelector('[class*="HomeFeedGrid"]:not([class*="HomeFeedGrid-f"])');
+  if (grid) grid.style.display = '';
 }

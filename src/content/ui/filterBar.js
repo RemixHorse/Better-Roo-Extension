@@ -1,4 +1,4 @@
-import { applyCardVisibility } from './cardBadge.js';
+import { applyCardFilter, applyCardSort } from './cardGrid.js';
 import { renderTable, destroyTable } from './table.js';
 import { showInfoModal } from './modal.js';
 
@@ -15,6 +15,10 @@ const _filters = {
 };
 
 let _viewMode = 'card'; // 'card' | 'table'
+let _sortCol = null;
+let _sortDir = 1;
+
+const SORT_DIRS = { name: 1, rating: -1, eta: 1, fee: 1, fsa: -1, distance: 1 };
 
 // --- Public API ---
 
@@ -102,12 +106,16 @@ export function applyFiltersAndRender() {
   });
 
   CHIP_DEFS.forEach(def => updateChip(def));
+  updateSortChip();
 
   if (_viewMode === 'table') {
+    document.getElementById('br-card-wrap')?.style.setProperty('display', 'none');
     renderTable(filtered, _sharedAddressResults, _fsaRatings);
   } else {
     destroyTable();
-    applyCardVisibility(filtered);
+    document.getElementById('br-card-wrap')?.style.removeProperty('display');
+    applyCardFilter(filtered);
+    applyCardSort(_sortCol, _sortDir);
   }
 }
 
@@ -144,6 +152,21 @@ const CHIP_DEFS = [
   },
 ];
 
+// Sort chip is card-only and manages _sortCol/_sortDir directly (not a _filters key)
+const SORT_CHIP = {
+  id: 'br-chip-sort',
+  label: 'Sort',
+  options: [
+    ['', 'Default'],
+    ['rating', '★ Rating'],
+    ['eta', '⏱ ETA'],
+    ['fee', '💸 Fee'],
+    ['fsa', '🏥 FSA'],
+    ['distance', '📍 Distance'],
+    ['name', 'A–Z Name'],
+  ],
+};
+
 let _openChipPopover = null;
 
 document.addEventListener('click', () => closeChipPopover());
@@ -175,6 +198,7 @@ function buildBar() {
   for (const def of CHIP_DEFS) {
     chips.appendChild(buildChip(def));
   }
+  chips.appendChild(buildSortChip());
 
   const toggle = document.createElement('button');
   toggle.id = 'br-view-toggle';
@@ -246,6 +270,74 @@ function buildChip(def) {
   return chip;
 }
 
+function buildSortChip() {
+  const chip = document.createElement('button');
+  chip.id = SORT_CHIP.id;
+  chip.className = 'br-chip br-chip-sort';
+
+  const labelEl = document.createElement('span');
+  labelEl.className = 'br-chip-label';
+  labelEl.textContent = SORT_CHIP.label;
+
+  const valueEl = document.createElement('span');
+  valueEl.className = 'br-chip-value';
+
+  const chevron = document.createElement('span');
+  chevron.className = 'br-chip-chevron';
+  chevron.innerHTML = `<svg width="10" height="6" viewBox="0 0 10 6" fill="currentColor"><path d="M0 0l5 6 5-6z"/></svg>`;
+
+  const popover = document.createElement('div');
+  popover.className = 'br-chip-popover';
+
+  for (const [val, lbl] of SORT_CHIP.options) {
+    const opt = document.createElement('div');
+    opt.className = 'br-chip-option';
+    opt.dataset.value = val;
+    opt.textContent = lbl;
+    opt.addEventListener('click', e => {
+      e.stopPropagation();
+      _sortCol = val || null;
+      _sortDir = SORT_DIRS[val] ?? 1;
+      updateSortChip();
+      closeChipPopover();
+      applyFiltersAndRender();
+    });
+    popover.appendChild(opt);
+  }
+
+  chip.appendChild(labelEl);
+  chip.appendChild(valueEl);
+  chip.appendChild(chevron);
+  chip.appendChild(popover);
+
+  chip.addEventListener('click', e => {
+    e.stopPropagation();
+    if (_openChipPopover === popover) {
+      closeChipPopover();
+    } else {
+      closeChipPopover();
+      popover.classList.add('br-chip-popover--open');
+      _openChipPopover = popover;
+    }
+  });
+
+  updateSortChip();
+  return chip;
+}
+
+function updateSortChip() {
+  const chip = document.getElementById(SORT_CHIP.id);
+  if (!chip) return;
+  const currentVal = _sortCol ?? '';
+  const currentOpt = SORT_CHIP.options.find(([v]) => v === currentVal) ?? SORT_CHIP.options[0];
+  const isActive = !!_sortCol;
+  chip.querySelector('.br-chip-value').textContent = isActive ? `: ${currentOpt[1]}` : '';
+  chip.classList.toggle('br-chip--active', isActive);
+  chip.querySelectorAll('.br-chip-option').forEach(el => {
+    el.classList.toggle('br-chip-option--active', el.dataset.value === currentVal);
+  });
+}
+
 function updateChip(def) {
   const chip = document.getElementById(def.id);
   if (!chip) return;
@@ -266,6 +358,7 @@ function updateToggleLabel() {
   const btn = document.getElementById('br-view-toggle');
   if (!btn) return;
   btn.textContent = _viewMode === 'card' ? '⊞ Table view' : '▦ Card view';
+  document.getElementById('better-roo-bar')?.classList.toggle('br-table-mode', _viewMode === 'table');
 }
 
 // --- Styles ---
@@ -405,6 +498,7 @@ function injectStyles() {
       background: rgba(255,255,255,0.25);
       border-color: rgba(255,255,255,0.8);
     }
+    #better-roo-bar.br-table-mode .br-chip-sort { display: none; }
   `;
   document.head.appendChild(style);
 }

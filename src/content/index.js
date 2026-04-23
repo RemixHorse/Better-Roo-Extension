@@ -14,8 +14,9 @@ import {
 } from './db.js';
 import { detectSharedAddresses } from './matcher.js';
 import { getFsaRatings } from './fsa.js';
-import { injectFilterBar, updateScanStatus, updateFilterBarData } from './ui/filterBar.js';
-import { initCardBadges, refreshCardBadge, markScanState } from './ui/cardBadge.js';
+import { injectFilterBar, updateScanStatus, updateFilterBarData, applyFiltersAndRender } from './ui/filterBar.js';
+import { initCardGrid, refreshCard, applyGridSettings, reconcileCardGrid, getPinFlags } from './ui/cardGrid.js';
+import { getGeohash, loadSnapshot, saveSnapshot, clearAllSnapshots } from './listingSnapshot.js';
 import { injectDetailBadge } from './ui/detailBadge.js';
 import { showSchemaBanner } from './ui/schemaBanner.js';
 import { showTableSkeleton, refreshTableRow, markTableRowScanState } from './ui/table.js';
@@ -29,11 +30,13 @@ let _cachedOnly = [];
 let _sharedAddressResults = new Map();
 let _fsaRatings = new Map();
 let _autoScanEnabled = false;
+let _scanFast = false;
 
 // --- Message handler ---
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'SETTINGS_CHANGED') {
     applySettingsToCards(msg.settings);
+    _scanFast = !!msg.settings.scanFast;
     const wasEnabled = _autoScanEnabled;
     _autoScanEnabled = !!msg.settings.autoScanEnabled;
     if (_autoScanEnabled && !wasEnabled && _listingRestaurants.length > 0) {
@@ -46,6 +49,7 @@ chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'CLEAR_DATA') {
     stopScanner();
     updateScanStatus(0, 0, null);
+    clearAllSnapshots();
     clearAll().then(() => {
       // Remove completion tints from all cards and rows
       document.querySelectorAll('[data-br-id].br-scan-done').forEach(el => el.classList.remove('br-scan-done'));
@@ -99,9 +103,26 @@ async function handleListingPage() {
 
   stopScanner();
 
-  // Fire skeleton immediately — runs concurrently with data loading below
-  showTableSkeleton();
+  // --- Pass 1: paint from localStorage snapshot if available ---
+  const geohash = getGeohash();
+  const snapshot = geohash ? loadSnapshot(geohash) : null;
+  let snapshotUsed = false;
 
+  if (snapshot) {
+    const snapFsa = new Map(Object.entries(snapshot.fsaRatings));
+    const snapShared = new Map(Object.entries(snapshot.sharedAddressResults));
+    const snapPins = new Map(
+      snapshot.restaurants.map(r => [String(r.id), snapshot.pinFlags[String(r.id)] ?? false])
+    );
+    await initCardGrid(snapshot.restaurants, snapShared, snapFsa, snapPins);
+    injectFilterBar(snapshot.restaurants, snapShared, snapFsa);
+    snapshotUsed = true;
+  } else {
+    // No snapshot — show skeleton while loading
+    showTableSkeleton();
+  }
+
+  // --- Pass 2: fresh data from DOM + IDB (always runs) ---
   const fresh = readListingRestaurants();
 
   // Merge with any DB-cached address data from prior detail-page visits BEFORE upserting,
@@ -130,11 +151,23 @@ async function handleListingPage() {
   const allForStats = await getAllRestaurants();
   chrome.storage.local.set({ brStats: { restaurantCount: allForStats.length, lastUpdated: Date.now() } });
 
-  injectFilterBar(enriched, sharedAddressResults, fsaRatings);
-  initCardBadges(enriched, sharedAddressResults, fsaRatings);
+  if (snapshotUsed) {
+    reconcileCardGrid(enriched, sharedAddressResults, fsaRatings);
+    updateFilterBarData({ restaurants: enriched, sharedAddressResults, fsaRatings });
+    applyFiltersAndRender();
+  } else {
+    await initCardGrid(enriched, sharedAddressResults, fsaRatings);
+    injectFilterBar(enriched, sharedAddressResults, fsaRatings);
+  }
 
-  const { autoScanEnabled } = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
+  // Save snapshot for next visit
+  if (geohash) {
+    saveSnapshot(geohash, enriched, fsaRatings, sharedAddressResults, getPinFlags());
+  }
+
+  const { autoScanEnabled, scanFast } = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
   _autoScanEnabled = !!autoScanEnabled;
+  _scanFast = !!scanFast;
   if (_autoScanEnabled) launchScanner();
 }
 
@@ -143,7 +176,7 @@ async function launchScanner() {
   const queue = buildQueue(_listingRestaurants, allCached, _fsaRatings);
   if (queue.length === 0) return;
 
-  startScanner({ queue, intervalMs: 3000, onTick: onScanTick, onComplete: onScanComplete });
+  startScanner({ queue, intervalMs: _scanFast ? 1000 : 3000, onTick: onScanTick, onComplete: onScanComplete });
   updateScanStatus(0, queue.length, queue[0]?.name ?? null);
 }
 
@@ -185,7 +218,7 @@ async function onScanTick(result) {
     const r = _listingRestaurants.find(r => r.id === restaurantId);
     const fsaRating = _fsaRatings.get(restaurantId) ?? null;
     const sharedResult = _sharedAddressResults.get(restaurantId) ?? { isSharedAddress: false, siblingNames: [] };
-    refreshCardBadge(restaurantId, r, fsaRating, sharedResult);
+    refreshCard(restaurantId, r, fsaRating, sharedResult);
     refreshTableRow(restaurantId, r, fsaRating, sharedResult);
 
     // Refresh any restaurant whose shared-address status changed
@@ -196,7 +229,7 @@ async function onScanTick(result) {
           JSON.stringify(old?.siblingNames) !== JSON.stringify(newShared.siblingNames)) {
         const sibling = _listingRestaurants.find(r => r.id === id);
         if (sibling) {
-          refreshCardBadge(id, sibling, _fsaRatings.get(id) ?? null, newShared);
+          refreshCard(id, sibling, _fsaRatings.get(id) ?? null, newShared);
           refreshTableRow(id, sibling, _fsaRatings.get(id) ?? null, newShared);
         }
       }
@@ -240,9 +273,6 @@ async function handleDetailPage() {
 // --- Settings application ---
 
 function applySettingsToCards(settings) {
-  document.body.classList.toggle('br-no-fsa',     !settings.hygieneEnabled);
-  document.body.classList.toggle('br-no-shared',  !settings.sharedAddressEnabled);
-  document.body.classList.toggle('br-hide-promo',  !!settings.hidePromotionalGroups);
-  document.body.classList.toggle('br-blur-images', !!settings.blurCardImages);
+  applyGridSettings(settings);
 }
 

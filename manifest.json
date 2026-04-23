@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Better Roo",
-  "version": "0.8.1",
-  "description": "Enriches Deliveroo with FSA hygiene ratings, shared address detection, and a sortable table view.",
+  "version": "1.3.0",
+  "description": "Better Deliveroo listings: FSA hygiene ratings, shared address badges, sortable cards, smart filters, and a compact table view.",
 
   "permissions": ["storage", "alarms"],
   "host_permissions": [

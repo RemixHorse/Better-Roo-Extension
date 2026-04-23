@@ -19,6 +19,18 @@ export function showInfoModal() {
     </div>
     <div class="br-modal-body">
       <div class="br-modal-section">
+        <div class="br-modal-section-icon">⚙️</div>
+        <div>
+          <div class="br-modal-section-title">Settings</div>
+          <div class="br-modal-section-text">
+            Click the Better Roo icon in your browser's extension bar to open the settings menu.
+            From there you can toggle FSA hygiene badges, shared address badges, card image blurring,
+            the number of card columns, table view as default, and auto-scan.
+            You can also clear all cached data from the same menu.
+          </div>
+        </div>
+      </div>
+      <div class="br-modal-section">
         <div class="br-modal-section-icon">🧪</div>
         <div>
           <div class="br-modal-section-title">FSA Hygiene Ratings</div>

@@ -1,4 +1,4 @@
-const DEFAULT_SETTINGS = { hygieneEnabled: true, sharedAddressEnabled: true, tableViewDefault: false, hidePromotionalGroups: true, blurCardImages: false, autoScanEnabled: false };
+const DEFAULT_SETTINGS = { hygieneEnabled: true, sharedAddressEnabled: true, tableViewDefault: false, blurCardImages: false, autoScanEnabled: true, scanFast: false, cardColumns: 4 };
 
 async function getSettings() {
   return chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
@@ -48,16 +48,18 @@ async function init() {
   const hygieneToggle  = document.getElementById('toggle-hygiene');
   const sharedToggle   = document.getElementById('toggle-shared');
   const tableToggle    = document.getElementById('toggle-table');
-  const promoToggle    = document.getElementById('toggle-promo');
   const blurToggle     = document.getElementById('toggle-blur');
   const autoscanToggle = document.getElementById('toggle-autoscan');
+  const scanfastToggle = document.getElementById('toggle-scanfast');
+  const colSelect      = document.getElementById('select-columns');
 
   hygieneToggle.checked  = settings.hygieneEnabled;
   sharedToggle.checked   = settings.sharedAddressEnabled;
   tableToggle.checked    = settings.tableViewDefault;
-  promoToggle.checked    = settings.hidePromotionalGroups;
   blurToggle.checked     = settings.blurCardImages;
   autoscanToggle.checked = settings.autoScanEnabled;
+  scanfastToggle.checked = settings.scanFast;
+  colSelect.value        = String(settings.cardColumns ?? 4);
 
   hygieneToggle.addEventListener('change', () =>
     saveSettings({ hygieneEnabled: hygieneToggle.checked })
@@ -68,14 +70,17 @@ async function init() {
   tableToggle.addEventListener('change', () =>
     saveSettings({ tableViewDefault: tableToggle.checked })
   );
-  promoToggle.addEventListener('change', () =>
-    saveSettings({ hidePromotionalGroups: promoToggle.checked })
-  );
   blurToggle.addEventListener('change', () =>
     saveSettings({ blurCardImages: blurToggle.checked })
   );
   autoscanToggle.addEventListener('change', () =>
     saveSettings({ autoScanEnabled: autoscanToggle.checked })
+  );
+  scanfastToggle.addEventListener('change', () =>
+    saveSettings({ scanFast: scanfastToggle.checked })
+  );
+  colSelect.addEventListener('change', () =>
+    saveSettings({ cardColumns: parseInt(colSelect.value) })
   );
 
   // Clear data

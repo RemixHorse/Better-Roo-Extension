@@ -9,9 +9,10 @@ const DEFAULT_SETTINGS = {
   hygieneEnabled: true,
   sharedAddressEnabled: true,
   tableViewDefault: false,
-  hidePromotionalGroups: true,
   blurCardImages: false,
-  autoScanEnabled: false,
+  autoScanEnabled: true,
+  scanFast: false,
+  cardColumns: 4,
 };
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {

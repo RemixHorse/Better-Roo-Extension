@@ -46,6 +46,7 @@ export function readListingRestaurants() {
         deliveryTimeMin: d['home-units-delivery-time.content'] ?? null,
         deliveryTimeLabel: d['home-units-delivery-time-label.content'] ?? null,
         deliveryFee: d['partner-delivery-fee.content'] ?? null,
+        imageUrl: d['card-image.url']?.split('?')[0] ?? null,
       });
     }
   }
