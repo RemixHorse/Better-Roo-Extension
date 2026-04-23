@@ -236,10 +236,59 @@ function makeDivider() {
 }
 
 
+export function markTableRowScanState(_id, _state) {
+  // Visual states (queued/scanning) removed — completion is shown via refreshTableRow
+}
+
+export function refreshTableRow(id, restaurant, fsaRating, sharedResult) {
+  const sid = String(id);
+  const idx = _restaurants.findIndex(r => String(r.id) === sid);
+  if (idx >= 0 && restaurant) _restaurants[idx] = { ..._restaurants[idx], ...restaurant };
+  _fsaRatings.set(sid, fsaRating);
+  _sharedAddressResults.set(sid, sharedResult);
+
+  const tr = document.querySelector(`#better-roo-table tr[data-br-id="${sid}"]`);
+  if (!tr) return;
+  tr.classList.remove('br-queued', 'br-scanning');
+  tr.classList.add('br-scan-done', 'br-scan-live');
+
+  const fsaTd = tr.cells[6];
+  if (fsaTd) {
+    fsaTd.innerHTML = '';
+    const pill = document.createElement('span');
+    pill.className = 'br-tbl-fsa-pill';
+    if (fsaRating?.score != null) {
+      pill.textContent = `${fsaRating.score}/5`;
+      const { bg, text } = fsaScoreColor(fsaRating.score);
+      pill.style.backgroundColor = bg;
+      pill.style.color = text;
+      if (fsaRating.ratingDate) pill.title = `Last inspected: ${timeAgo(fsaRating.ratingDate)}`;
+    } else {
+      pill.textContent = '?';
+      pill.classList.add('br-tbl-fsa-unknown');
+    }
+    fsaTd.appendChild(pill);
+  }
+
+  const addressTd = tr.cells[7];
+  if (addressTd) {
+    addressTd.innerHTML = '';
+    if (sharedResult?.isSharedAddress) {
+      const pill = document.createElement('span');
+      pill.className = 'br-tbl-shared';
+      pill.textContent = 'Shared';
+      pill.title = `Also here: ${sharedResult.siblingNames.join(', ')}`;
+      addressTd.appendChild(pill);
+    }
+  }
+}
+
 function buildRow({ r, pinned, closed, shared, fsa }, pinFlags) {
   const tr = document.createElement('tr');
+  tr.dataset.brId = String(r.id);
   if (pinned) tr.classList.add('br-pinned');
   if (closed) tr.classList.add('br-closed');
+  if (r.address1) tr.classList.add('br-scan-done');
 
   // Pin toggle
   const pinTd = document.createElement('td');
@@ -569,12 +618,11 @@ function injectStyles() {
       border-bottom: 1px solid #f0f0f0;
     }
     #better-roo-table tbody tr:hover { background: #f9f9f9; }
-    #better-roo-table tbody tr.br-pinned { background: #f0fffe; }
-    #better-roo-table tbody tr.br-pinned:hover { background: #e4f9f7; }
+    #better-roo-table tbody tr.br-pinned:hover { background: #f9f9f9; }
     #better-roo-table tbody tr.br-divider td {
       padding: 0;
       height: 3px;
-      background: linear-gradient(to right, #00CCBC44, transparent);
+      background: linear-gradient(to right, rgba(0, 204, 188, 0.7), rgba(0, 204, 188, 0.15));
       border: none;
     }
     .br-tbl-closed-label {
@@ -591,17 +639,20 @@ function injectStyles() {
       opacity: 0.65;
       background: #f9f9f9;
     }
-    #better-roo-table tbody tr.br-closed .br-tbl-link {
-      color: #666;
-    }
     #better-roo-table td {
       padding: 9px 10px;
       vertical-align: middle;
     }
     .br-tbl-link {
-      color: #222;
+      color: inherit;
       text-decoration: none;
       font-weight: 600;
+    }
+    #better-roo-table tbody tr:not(.br-scan-done) .br-tbl-link {
+      color: var(--color-foreground-neutral-normal-on-elevation-base, #888);
+    }
+#better-roo-table tbody tr.br-closed .br-tbl-link {
+      color: #666;
     }
     .br-tbl-link:hover { color: #00CCBC; text-decoration: underline; }
     .br-tbl-sub { color: #999; font-size: 11px; }
@@ -633,6 +684,15 @@ function injectStyles() {
       background-color: #FFD54F;
       color: #7F4900;
       cursor: default;
+    }
+    #better-roo-table tbody tr.br-scan-done {
+      background-color: rgba(0, 204, 188, 0.11);
+    }
+    #better-roo-table tbody tr.br-scan-live {
+      transition: background-color 0.4s linear;
+    }
+    #better-roo-table tbody tr.br-scan-done:hover {
+      background-color: rgba(0, 204, 188, 0.2);
     }
     .br-spinner-cell {
       padding: 48px 10px;

@@ -2,6 +2,7 @@ import { getUserFlag, setUserFlag } from '../db.js';
 import { showInfoModal } from './modal.js';
 
 let _hrefToRestaurant = new Map(); // normalizedPath → restaurant object
+let _idToRestaurant = new Map();   // id (string) → restaurant object
 let _sharedAddressResults = new Map();
 let _fsaRatings = new Map();
 let _settings = { hygieneEnabled: true, sharedAddressEnabled: true };
@@ -16,6 +17,7 @@ export async function initCardBadges(restaurants, sharedAddressResults, fsaRatin
   _hrefToRestaurant = new Map(
     restaurants.filter(r => r.href).map(r => [normalizePath(r.href), r])
   );
+  _idToRestaurant = new Map(restaurants.map(r => [String(r.id), r]));
 
   const stored = await chrome.storage.sync.get({ hygieneEnabled: true, sharedAddressEnabled: true, hidePromotionalGroups: true, blurCardImages: false });
   _settings = stored;
@@ -35,6 +37,62 @@ export function applyCardVisibility(filteredRestaurants) {
   document.querySelectorAll('[data-br-id]').forEach(el => {
     el.classList.toggle('br-card-dimmed', !_filteredIds.has(el.dataset.brId));
   });
+}
+
+export function markScanState(_id, _state) {
+  // Visual states (queued/scanning) removed — completion is shown via refreshCardBadge
+}
+
+export function refreshCardBadge(id, restaurant, fsaRating, sharedResult) {
+  const sid = String(id);
+  if (restaurant) _idToRestaurant.set(sid, { ...(_idToRestaurant.get(sid) ?? {}), ...restaurant });
+  if (fsaRating !== undefined) _fsaRatings.set(sid, fsaRating);
+  if (sharedResult !== undefined) _sharedAddressResults.set(sid, sharedResult);
+
+  const root = document.querySelector(`[data-br-id="${sid}"]`);
+  if (!root) return;
+  root.classList.remove('br-queued', 'br-scanning');
+  root.classList.add('br-scan-done');
+  const badgeRow = root.querySelector('.br-badge-row');
+  if (!badgeRow) return;
+
+  const r = _idToRestaurant.get(sid);
+
+  // FSA badge
+  badgeRow.querySelector('.br-fsa-badge')?.remove();
+  if (_settings.hygieneEnabled) {
+    const fsaBadge = document.createElement('div');
+    fsaBadge.className = 'br-fsa-badge';
+    if (fsaRating?.score != null) {
+      fsaBadge.textContent = `FSA ${fsaRating.score}/5`;
+      const { bg, text } = fsaScoreColor(fsaRating.score);
+      fsaBadge.style.backgroundColor = bg;
+      fsaBadge.style.color = text;
+    } else if (r?.address1) {
+      fsaBadge.textContent = 'FSA —';
+      fsaBadge.style.backgroundColor = '#F5F5F5';
+      fsaBadge.style.color = '#888';
+      fsaBadge.title = 'No FSA rating found for this restaurant';
+    } else {
+      fsaBadge.textContent = 'FSA ?';
+      fsaBadge.style.backgroundColor = '#F5F5F5';
+      fsaBadge.style.color = '#424242';
+      fsaBadge.title = 'Open this menu to load its FSA rating';
+      fsaBadge.classList.add('br-fsa-badge--unknown');
+    }
+    badgeRow.insertBefore(fsaBadge, badgeRow.firstChild);
+  }
+
+  // Shared badge
+  badgeRow.querySelector('.br-shared-badge')?.remove();
+  if (_settings.sharedAddressEnabled && sharedResult?.isSharedAddress) {
+    const sharedBadge = document.createElement('div');
+    sharedBadge.className = 'br-shared-badge';
+    sharedBadge.textContent = 'Shared Address';
+    sharedBadge.title = `Also here: ${sharedResult.siblingNames.join(', ')}`;
+    sharedBadge.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); });
+    badgeRow.appendChild(sharedBadge);
+  }
 }
 
 export function reorderPinnedCards() {
@@ -231,6 +289,10 @@ function injectBadgeStyles() {
     .br-fsa-badge--unknown:hover { background: #e0e0e0 !important; }
     .br-card-dimmed { opacity: 0.25; pointer-events: none; transition: opacity 0.2s; }
     body.br-hide-promo [class*="HomeFeedGrid"] > [class*="HomeFeedGrid"]:has([class*="Carousel"]) { display: none !important; }
+    [data-br-id].br-scan-done {
+      background-color: rgba(0, 204, 188, 0.12);
+      transition: background-color 0.4s linear;
+    }
   `;
   document.head.appendChild(style);
 }

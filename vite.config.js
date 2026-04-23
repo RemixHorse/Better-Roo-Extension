@@ -9,13 +9,17 @@ const outDir = resolve(root, `dist-${BROWSER}`);
 // Browser-specific manifest overrides — merged on top of the base manifest at build time.
 // Chrome needs nothing extra; all additions are Firefox-only.
 const BROWSER_OVERRIDES = {
-  chrome: {},
+  chrome: {
+    background: { service_worker: 'background.js', type: 'module' },
+  },
   firefox: {
+    // Firefox MV3 keeps background.service_worker behind a flag — use scripts array instead
+    background: { scripts: ['background.js'] },
     permissions: ['storage', 'alarms', 'tabs'],
     browser_specific_settings: {
       gecko: {
         id: 'better-roo@remixhorse',
-        strict_min_version: '128.0',
+        strict_min_version: '109.0',
       },
     },
   },
@@ -43,22 +47,23 @@ const copyExtensionFiles = () => ({
         { matches: ['*://deliveroo.co.uk/*'], js: ['early.js'], run_at: 'document_start' },
         { matches: ['*://deliveroo.co.uk/*'], js: ['content.js'], run_at: 'document_end' },
       ],
-      background: { service_worker: 'background.js', type: 'module' },
       action: { ...base.action, default_popup: 'popup.html' },
     };
     writeFileSync(resolve(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
   },
 });
 
+// Builds background service worker + popup as ES modules.
+// Runs first — cleans outDir, writes manifest and icons.
+// Content scripts are built separately via vite.content.config.js (IIFE format).
 export default defineConfig({
   plugins: [copyExtensionFiles()],
   build: {
     outDir,
     minify: false,
+    emptyOutDir: true,
     rollupOptions: {
       input: {
-        content:    resolve(root, 'src/content/index.js'),
-        early:      resolve(root, 'src/content/early.js'),
         background: resolve(root, 'src/background/index.js'),
         popup:      resolve(root, 'src/popup/popup.html'),
       },

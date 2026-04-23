@@ -18,6 +18,32 @@ let _viewMode = 'card'; // 'card' | 'table'
 
 // --- Public API ---
 
+export function updateFilterBarData({ restaurants, sharedAddressResults, fsaRatings } = {}) {
+  if (restaurants) _restaurants = restaurants;
+  if (sharedAddressResults) _sharedAddressResults = sharedAddressResults;
+  if (fsaRatings) _fsaRatings = fsaRatings;
+}
+
+let _fadeTimeout = null;
+
+export function updateScanStatus(scannedCount, totalCount, currentName) {
+  const el = document.getElementById('br-scan-status');
+  if (!el) return;
+
+  if (totalCount === 0) { el.style.display = 'none'; return; }
+
+  el.style.display = '';
+  el.style.opacity = '1';
+  if (_fadeTimeout) { clearTimeout(_fadeTimeout); _fadeTimeout = null; }
+
+  if (currentName !== null) {
+    el.textContent = `${scannedCount} / ${totalCount}  Discovering ${currentName}…`;
+  } else {
+    el.textContent = `${scannedCount} / ${totalCount}  Scan complete`;
+    _fadeTimeout = setTimeout(() => { el.style.opacity = '0'; }, 4000);
+  }
+}
+
 export async function injectFilterBar(restaurants, sharedAddressResults, fsaRatings) {
   _restaurants = restaurants;
   _sharedAddressResults = sharedAddressResults;
@@ -133,16 +159,15 @@ function buildBar() {
   const bar = document.createElement('div');
   bar.id = 'better-roo-bar';
 
-  const { version } = chrome.runtime.getManifest();
-  const label = document.createElement('span');
-  label.className = 'br-bar-label';
-  label.textContent = `Better Roo v${version}`;
-
   const help = document.createElement('button');
   help.className = 'br-bar-help';
   help.textContent = '?';
   help.title = 'About Better Roo';
   help.addEventListener('click', e => { e.stopPropagation(); showInfoModal(); });
+
+  const status = document.createElement('span');
+  status.id = 'br-scan-status';
+  status.style.display = 'none';
 
   const chips = document.createElement('div');
   chips.className = 'br-chips';
@@ -160,8 +185,8 @@ function buildBar() {
     applyFiltersAndRender();
   });
 
-  bar.appendChild(label);
   bar.appendChild(help);
+  bar.appendChild(status);
   bar.appendChild(chips);
   bar.appendChild(toggle);
   return bar;
@@ -265,13 +290,13 @@ function injectStyles() {
       gap: 12px;
     }
     body { padding-bottom: 64px; }
-    .br-bar-label {
-      font-size: 15px;
-      font-weight: 700;
-      color: #fff;
+    #br-scan-status {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.9);
       white-space: nowrap;
       flex-shrink: 0;
-      letter-spacing: -0.3px;
+      transition: opacity 1s ease;
     }
     .br-bar-help {
       flex-shrink: 0;

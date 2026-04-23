@@ -4,16 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "cross-env BROWSER=chrome vite build --watch",
-    "build": "cross-env BROWSER=chrome vite build",
-    "build:chrome": "cross-env BROWSER=chrome vite build",
-    "build:firefox": "cross-env BROWSER=firefox vite build",
+    "dev": "cross-env BROWSER=chrome vite build && cross-env BROWSER=chrome vite build --config vite.content.config.js",
+    "build": "cross-env BROWSER=chrome vite build && cross-env BROWSER=chrome vite build --config vite.content.config.js",
+    "build:chrome": "cross-env BROWSER=chrome vite build && cross-env BROWSER=chrome vite build --config vite.content.config.js",
+    "build:firefox": "cross-env BROWSER=firefox vite build && cross-env BROWSER=firefox vite build --config vite.content.config.js",
     "build:xpi": "npm run build:firefox && node scripts/make-xpi.js",
     "build:all": "npm run build:chrome && npm run build:xpi",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "devDependencies": {
+    "archiver": "^7.0.1",
     "cross-env": "^10.1.0",
     "jimp": "^1.6.1",
     "jsdom": "^29.0.2",

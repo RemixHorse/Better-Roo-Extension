@@ -1,5 +1,7 @@
 console.debug('[Better Roo] service worker started');
 
+import { parseDetailRestaurant, parseDetailFsaRating } from '../shared/pageParser.js';
+
 const FSA_API = 'https://api.ratings.food.gov.uk';
 const FSA_HEADERS = { 'Accept': 'application/json; version=2', 'x-api-version': '2' };
 
@@ -9,12 +11,17 @@ const DEFAULT_SETTINGS = {
   tableViewDefault: false,
   hidePromotionalGroups: true,
   blurCardImages: false,
+  autoScanEnabled: false,
 };
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'FSA_LOOKUP') {
     handleFsaLookup(msg.restaurants).then(sendResponse);
-    return true; // async response
+    return true;
+  }
+  if (msg.type === 'SCAN_NEXT') {
+    handleScanNext(msg).then(sendResponse);
+    return true;
   }
   if (msg.type === 'GET_SETTINGS') {
     chrome.storage.sync.get(DEFAULT_SETTINGS).then(sendResponse);
@@ -29,9 +36,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
 });
 
+// --- FSA lookup (existing) ---
+
 async function handleFsaLookup(restaurants) {
-  const results = await Promise.all(restaurants.map(lookupOne));
-  return results;
+  return Promise.all(restaurants.map(lookupOne));
 }
 
 async function lookupOne({ id, name, address1 }) {
@@ -47,7 +55,6 @@ async function lookupOne({ id, name, address1 }) {
     const establishments = data.establishments ?? [];
     if (establishments.length === 0) return { id, score: null, ratingDate: null };
 
-    // Pick best match: prefer same street number, fall back to first result
     const streetNum = extractStreetNumber(address1);
     const best = streetNum
       ? (establishments.find(e => e.AddressLine1?.includes(streetNum)) ?? establishments[0])
@@ -63,11 +70,59 @@ async function lookupOne({ id, name, address1 }) {
   }
 }
 
+// --- Auto-scan: fetch a single restaurant page and extract its data ---
+
+async function handleScanNext({ restaurantId, href, name, address1 }) {
+  // Restaurant already has an address — FSA lookup only
+  if (address1) {
+    const { score, ratingDate } = await lookupOne({ id: restaurantId, name, address1 });
+    return { restaurantId, address1, score, ratingDate, skipped: false };
+  }
+
+  // No address — fetch the Deliveroo menu page to get it
+  const pageData = await fetchRestaurantPage(href);
+  if (!pageData) {
+    return { restaurantId, address1: null, score: null, ratingDate: null, skipped: true };
+  }
+
+  const { restaurant, fsaRating } = pageData;
+
+  // If the page had no embedded FSA rating, attempt an API lookup now we have the address
+  let score = fsaRating?.score ?? null;
+  let ratingDate = fsaRating?.ratingDate ?? null;
+  if (score === null && restaurant.address1) {
+    const apiResult = await lookupOne({ id: restaurantId, name: restaurant.name, address1: restaurant.address1 });
+    score = apiResult.score;
+    ratingDate = apiResult.ratingDate;
+  }
+
+  return { restaurantId, restaurant, address1: restaurant.address1, score, ratingDate, skipped: false };
+}
+
+async function fetchRestaurantPage(href) {
+  try {
+    const res = await fetch(`https://deliveroo.co.uk${href}`);
+    if (!res.ok) return null;
+    const html = await res.text();
+    const match = html.match(/__NEXT_DATA__[^>]*>([^<]+)<\/script>/);
+    if (!match) return null;
+    const nextData = JSON.parse(match[1]);
+    return {
+      restaurant: parseDetailRestaurant(nextData),
+      fsaRating:  parseDetailFsaRating(nextData),
+    };
+  } catch {
+    return null;
+  }
+}
+
+// --- Helpers ---
+
 function parseRatingValue(value) {
   if (value == null) return null;
   const n = parseInt(value, 10);
   if (!isNaN(n) && n >= 0 && n <= 5) return n;
-  return null; // "Exempt", "AwaitingInspection", etc.
+  return null;
 }
 
 function extractPostcode(address1) {

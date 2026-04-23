@@ -248,7 +248,7 @@ Several findings from API research (see `API.md`) supersede the original design 
 
 - [x] **12.1** All injected DOM elements use `better-roo-` / `br-` prefix on IDs and class names to avoid collisions with Deliveroo's styles
 - [x] **12.2** `manifest.json` permissions confirmed minimal: `storage`, `alarms`, `deliveroo.co.uk`, `api.ratings.food.gov.uk`
-- [ ] **12.3** Firefox / Edge support — not currently a goal; extension targets Chrome only
+- [x] **12.3** Firefox support — XPI builds successfully; awaiting signing
 
 ---
 

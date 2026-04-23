@@ -1,4 +1,4 @@
-import { extractPostcode } from './addressNorm.js';
+import { parseDetailRestaurant, parseDetailFsaRating } from '../shared/pageParser.js';
 
 function getNextData() {
   const el = document.getElementById('__NEXT_DATA__');
@@ -54,56 +54,9 @@ export function readListingRestaurants() {
 }
 
 export function readDetailRestaurant() {
-  const r = getNextData().props.initialState.menuPage.menu.metas.root.restaurant;
-  const loc = r.location ?? {};
-  const addr = loc.address ?? {};
-
-  return {
-    id: r.id,
-    drn_id: r.drnId ?? null,
-    brand_drn_id: r.brandDrnId ?? null,
-    name: r.name,
-    uname: r.uname ?? null,
-    address1: addr.address1 ?? null,
-    postcode: extractPostcode(addr.address1),
-    neighborhood: addr.neighborhood ?? null,
-    city: addr.city ?? null,
-  };
+  return parseDetailRestaurant(getNextData());
 }
 
 export function readDetailFsaRating() {
-  const layoutGroups = getNextData()?.props?.initialState?.menuPage?.menu?.layoutGroups;
-  if (!layoutGroups) return null;
-
-  const block = findHygieneBlock(layoutGroups);
-  if (!block) return null;
-
-  const firstBlock = block.blocks?.[0];
-  if (!firstBlock) return null;
-
-  const imageUrl = firstBlock.image?.url ?? '';
-  const scoreMatch = imageUrl.match(/fhrs_(\d+)@/);
-  const score = scoreMatch ? parseInt(scoreMatch[1], 10) : null;
-
-  // walk lines/spans looking for "Last updated: ..." text
-  let ratingDate = null;
-  for (const line of (firstBlock.lines || [])) {
-    for (const span of (line.spans || [])) {
-      const m = span.text?.match(/Last updated:\s*(.+)/i);
-      if (m) { ratingDate = new Date(m[1].trim()).getTime() || null; break; }
-    }
-    if (ratingDate) break;
-  }
-
-  return { score, ratingDate };
-}
-
-function findHygieneBlock(obj) {
-  if (!obj || typeof obj !== 'object') return null;
-  if (obj.actionId === 'layout-list-hygiene-rating') return obj;
-  for (const v of Object.values(obj)) {
-    const found = findHygieneBlock(v);
-    if (found) return found;
-  }
-  return null;
+  return parseDetailFsaRating(getNextData());
 }

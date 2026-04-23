@@ -1,14 +1,17 @@
-import { execSync } from 'child_process';
-import { existsSync, rmSync, renameSync } from 'fs';
+import archiver from 'archiver';
+import { createWriteStream, existsSync, rmSync } from 'fs';
 
 const XPI = 'better-roo.xpi';
 if (existsSync(XPI)) rmSync(XPI);
 
-if (process.platform === 'win32') {
-  execSync('powershell Compress-Archive -Path dist-firefox\\* -DestinationPath better-roo.zip');
-  renameSync('better-roo.zip', XPI);
-} else {
-  execSync(`cd dist-firefox && zip -r ../${XPI} .`);
-}
+await new Promise((resolve, reject) => {
+  const output = createWriteStream(XPI);
+  const archive = archiver('zip', { zlib: { level: 9 } });
+  output.on('close', resolve);
+  archive.on('error', reject);
+  archive.pipe(output);
+  archive.directory('dist-firefox/', false);
+  archive.finalize();
+});
 
 console.log(`Created ${XPI}`);

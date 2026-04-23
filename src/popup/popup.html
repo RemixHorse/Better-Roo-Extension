@@ -129,6 +129,7 @@
   </div>
 
   <div class="br-stats" id="br-stats">Loading…</div>
+  <div class="br-stats" id="br-scan-stats" style="border-top:1px solid #e8e8e8;"></div>
 
   <div class="br-section">
     <div class="br-section-label">Card view</div>
@@ -187,6 +188,20 @@
       </div>
       <label class="br-switch">
         <input type="checkbox" id="toggle-table" />
+        <span class="br-slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="br-section">
+    <div class="br-section-label">Auto-scan</div>
+    <div class="br-toggle-row">
+      <div>
+        <div class="br-toggle-label">Auto-scan unvisited restaurants</div>
+        <div class="br-toggle-sub">Fetch addresses &amp; ratings for unvisited restaurants</div>
+      </div>
+      <label class="br-switch">
+        <input type="checkbox" id="toggle-autoscan" />
         <span class="br-slider"></span>
       </label>
     </div>
