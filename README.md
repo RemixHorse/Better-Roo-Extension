@@ -113,7 +113,7 @@ npm run build:xpi      # Firefox → dist-firefox/ + better-roo.xpi
 
 The Better Roo icon will appear in your toolbar. Navigate to a Deliveroo restaurant listing to get started.
 
-### Load in Firefox
+### Load in Firefox (Firefox Developer Edition only)
 
 1. Open `about:debugging#/runtime/this-firefox`
 2. Click **Load Temporary Add-on…**
