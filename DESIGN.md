@@ -15,7 +15,7 @@ Deliveroo's search results hide information that matters to users: food hygiene 
 
 | # | Decision | Choice |
 |---|----------|--------|
-| 1 | Target browser | Chrome only (MV3) |
+| 1 | Target browser | Chrome (MV3) and Firefox |
 | 2 | Target market | UK only — deliveroo.co.uk |
 | 3 | Hygiene rating source | UK FSA Ratings API (ratings.food.gov.uk) |
 | 4 | Restaurant data source | `__NEXT_DATA__` JSON blob embedded in the page — parsed by `reader.js` |
@@ -29,7 +29,7 @@ Deliveroo's search results hide information that matters to users: food hygiene 
 | 12 | Table sorting | All columns sortable (click header, toggle asc/desc); pinned rows always appear first |
 | 13 | Filter bar placement | Fixed bar at the bottom of the viewport |
 | 14 | Filter controls | FSA min score, Deliveroo min rating, shared address mode (all/shared/unique), max delivery time |
-| 15 | FSA fetch timing | Listing page: cache-first (7 day TTL), misses batched to background worker. Detail page: read directly from `__NEXT_DATA__` |
+| 15 | FSA fetch timing | Listing page: cache-first (14 day TTL), stale scores returned immediately on expiry while scanner refreshes in background. First-time misses batched to background worker (concurrency-limited, 5 at a time). Detail page: read directly from `__NEXT_DATA__`. Null results cached: confirmed no-record gets 14d TTL, lookup failures get 24h TTL. |
 | 16 | Shared address card UX | Amber pill badge inline with FSA badge; hover tooltip lists sibling restaurant names |
 | 17 | Shared address handling | Always flagged; no dismiss — user decides what to do with the information |
 | 18 | Extension popup | DB stats (record count, last updated) + feature toggles + clear data button |
@@ -38,7 +38,7 @@ Deliveroo's search results hide information that matters to users: food hygiene 
 | 21 | Tech stack | Vanilla JS + Vite |
 | 22 | SPA navigation | `history.pushState` patching + `popstate` event listener — re-runs on every route change |
 | 23 | Deliveroo resilience | Schema validation on `__NEXT_DATA__` before reading; banner notification if schema has changed |
-| 24 | Settings toggles | Hygiene display, shared address badges, table view default, hide promotional carousels, blur card images |
+| 24 | Settings toggles | Hygiene display, shared address badges, table view default, blur card images, auto-scan, scan fast, card columns |
 | 25 | Distribution | Open source on GitHub; GitHub Actions builds and zips on tag push |
 | 26 | Pinning | User can pin restaurants — pinned rows always sort to the top of the table view, persisted in IndexedDB |
 | 27 | Flash prevention | `early.js` runs at `document_start` and hides the card grid immediately if table mode is active, preventing skeleton flash |
@@ -65,14 +65,19 @@ Deliveroo's search results hide information that matters to users: food hygiene 
 │  │                             user_flags)             │    │
 │  │  matcher.js    — shared address detection           │    │
 │  │  fsa.js        — cache-first FSA lookup             │    │
+│  │  scanner.js   — auto-scan queue + tick loop         │    │
+│  │  listingSnapshot.js — localStorage two-pass cache   │    │
 │  │  ui/           — filter bar, table, badges, modal   │    │
 │  └────────────────────────┬────────────────────────────┘    │
 └───────────────────────────┼──────────────────────────────────┘
-                            │ chrome.runtime.sendMessage (FSA_LOOKUP)
+                            │ chrome.runtime.sendMessage
+                            │   (FSA_LOOKUP, SCAN_NEXT)
               ┌─────────────▼────────────────┐
               │ background/index.js           │
               │ (Service Worker)              │
               │ - FSA API fetch (CORS)        │
+              │ - Restaurant page fetch       │
+              │   (auto-scan)                 │
               │ - chrome.storage.sync         │
               │   (settings)                  │
               └───────────────────────────────┘
@@ -100,7 +105,9 @@ better-roo/
 ├── vite.config.js
 ├── src/
 │   ├── background/
-│   │   └── index.js          # Service worker: FSA API proxy, settings storage
+│   │   └── index.js          # Service worker: FSA API proxy, page fetcher, settings storage
+│   ├── shared/
+│   │   └── pageParser.js     # Shared __NEXT_DATA__ parsers (used by content + background)
 │   ├── content/
 │   │   ├── early.js          # document_start: hides card grid to prevent table-mode flash
 │   │   ├── index.js          # Orchestrator: reads page, drives DB + UI
@@ -108,10 +115,13 @@ better-roo/
 │   │   ├── db.js             # IndexedDB wrapper (restaurants, fsa_cache, user_flags)
 │   │   ├── matcher.js        # Shared address detection
 │   │   ├── fsa.js            # FSA cache + background worker dispatch
+│   │   ├── scanner.js        # Auto-scan queue builder + tick loop
+│   │   ├── listingSnapshot.js # localStorage two-pass listing cache
 │   │   ├── addressNorm.js    # Postcode extraction, street number extraction, normalisation
 │   │   ├── timeAgo.js        # Relative time formatting
 │   │   └── ui/
 │   │       ├── filterBar.js  # Fixed bottom bar: filter chips + card/table toggle
+│   │       ├── cardGrid.js   # Custom card grid with sort/filter/reconcile
 │   │       ├── table.js      # Table view renderer + sorting
 │   │       ├── cardBadge.js  # FSA + shared address pills on listing cards
 │   │       ├── detailBadge.js # FSA badge on restaurant detail page
@@ -140,12 +150,15 @@ better-roo/
 
 ### 2. Listing Page
 
-1. `reader.js` reads all restaurant blocks from `__NEXT_DATA__`, deduplicating by restaurant ID. Fields captured: `id`, `drn_id`, `name`, `href`, `rating`, `deliveryTimeMin`, `deliveryFee`, and related display fields.
-2. Existing DB records are fetched and merged with fresh listing data (DB address fields are preserved — they're richer, written by detail page visits).
-3. All restaurants are upserted to the `restaurants` IndexedDB store.
-4. `matcher.js` runs `detectSharedAddresses` over the merged set (listing + all DB-cached restaurants, so currently-closed brands still contribute as siblings).
-5. `fsa.js` runs cache-first FSA lookup (see FSA flow below).
-6. `filterBar.js` and `cardBadge.js` are initialised with the enriched data.
+1. `listingSnapshot.js` attempts to load a localStorage snapshot (keyed by geohash, 24h TTL). If found, the card grid/table renders immediately from the snapshot (Pass 1 — sync, ~40ms).
+2. `reader.js` reads all restaurant blocks from `__NEXT_DATA__`, deduplicating by restaurant ID. Fields captured: `id`, `drn_id`, `name`, `href`, `rating`, `deliveryTimeMin`, `deliveryFee`, and related display fields.
+3. Existing DB records are fetched and merged with fresh listing data (DB address fields are preserved — they're richer, written by detail page visits).
+4. All restaurants are upserted to the `restaurants` IndexedDB store.
+5. `matcher.js` runs `detectSharedAddresses` over the merged set (listing + all DB-cached restaurants, so currently-closed brands still contribute as siblings).
+6. `fsa.js` runs cache-first FSA lookup (see FSA flow below). Expired entries return stale scores immediately and are queued for background refresh.
+7. If a snapshot was used, `reconcileCardGrid` patches changed/added/removed cards. Otherwise `initCardGrid` renders from scratch.
+8. A fresh snapshot is saved to localStorage for next visit.
+9. If auto-scan is enabled, the scanner is launched with expired FSA entries and unvisited restaurants in the queue.
 
 ### 3. Detail Page
 
@@ -156,12 +169,16 @@ better-roo/
 
 ### 4. FSA Hygiene Lookup (Listing Page)
 
-1. For each restaurant in the current listing, `fsa.js` checks `fsa_cache` in IndexedDB. Cached entries with a non-null score and age under 7 days are used directly.
-2. Cache misses (restaurants with an `address1` but no valid cached score) are batched and sent to the background service worker as a single `FSA_LOOKUP` message.
-3. The background worker calls `https://api.ratings.food.gov.uk/Establishments?name={name}&address={postcode}&pageSize=5`.
+1. For each restaurant in the current listing, `fsa.js` checks `fsa_cache` in IndexedDB.
+   - Entries with a non-null score and age under 14 days are used directly.
+   - Entries marked `failed: true` use a 24-hour TTL instead.
+   - Expired entries still return their stale score (so badges never go blank) and are added to an `expired` list for background refresh via the scanner.
+2. Cache misses (restaurants with an `address1` but no cache entry at all) are batched and sent to the background service worker as a single `FSA_LOOKUP` message.
+3. The background worker processes lookups concurrency-limited (5 at a time) to avoid rate-limiting, calling `https://api.ratings.food.gov.uk/Establishments?name={name}&address={postcode}&pageSize=5`.
 4. If multiple establishments are returned, the one whose `AddressLine1` contains the restaurant's street number is preferred; otherwise the first result is used.
 5. `RatingValue` is parsed as an integer 0–5; non-numeric values ("Exempt", "AwaitingInspection") produce `null`.
-6. Results are written back to `fsa_cache` and the UI is updated.
+6. Results are written back to `fsa_cache` (including null results, tagged `noRecord: true` or `failed: true`) and the UI is updated.
+7. Expired entries are fed into the scanner queue for throttled background refresh (one every 3 seconds alongside other scan work).
 
 ### 5. Shared Address Detection
 
@@ -172,14 +189,26 @@ better-roo/
 3. Any restaurant that shares a key with at least one other restaurant is flagged `isSharedAddress: true`, with `siblingNames` listing the co-located restaurant names.
 4. Restaurants with no parseable postcode or street number are flagged `false` and excluded from grouping.
 
-### 6. UI — Filter Bar
+### 6. Auto-Scan
+
+1. After listing page data loads, if `autoScanEnabled` is true, `scanner.js` builds a priority queue:
+   - P1: listing restaurants with `address1` but no FSA result in the map
+   - Expired: listing restaurants whose FSA cache entry has expired (stale score shown, needs refresh)
+   - P2: listing restaurants without `address1` (need menu page fetch)
+   - P3: DB-cached restaurants (not in listing) without `address1`
+2. The scanner pops one restaurant per tick (every 3s, or 1s in "scan fast" mode) and sends a `SCAN_NEXT` message to the background worker.
+3. Background worker either does an FSA API lookup (if address known) or fetches the restaurant's Deliveroo menu page to extract address + FSA rating.
+4. On each tick result: the restaurant's card badge and table row are refreshed, shared address detection is re-run (new addresses may reveal new matches), and the filter bar status text updates progress.
+5. Results (including null/failed) are cached to IDB with appropriate TTLs.
+
+### 7. UI — Filter Bar
 
 - A fixed bar is appended to the bottom of `document.body`, pinned via `position: fixed`.
-- Contains: Better Roo label, `?` info button (opens modal), four filter chips (FSA, Rating, Address, Delivery), and a card/table view toggle.
+- Contains: `?` info button (opens modal), scan progress text, four filter chips (FSA, Rating, Address, Delivery), sort chip, and a card/table view toggle.
 - Each chip opens a popover of options above the bar. The active filter value is shown inline on the chip.
-- Filtering in card mode dims non-matching cards rather than hiding them. Filtering in table mode re-renders the table with only matching rows.
+- Filtering in card mode hides non-matching cards and reflows the grid. Filtering in table mode re-renders the table with only matching rows.
 
-### 7. UI — Cards
+### 8. UI — Cards
 
 - `cardBadge.js` processes each Deliveroo card in the DOM, matched by the restaurant's `href`.
 - A `br-badge-row` flex container is appended inside the card's image wrapper, with `isolation: isolate` to scope the stacking context and prevent badges appearing above Deliveroo's fixed header.
@@ -187,11 +216,11 @@ better-roo/
 - Shared address badge: amber `Shared Address` pill with a hover tooltip listing sibling names. `pointer-events: auto` and `e.stopPropagation()` are applied to make the tooltip work inside anchor elements.
 - `blurCardImages` setting applies a CSS blur to card background images via a body class.
 
-### 8. Settings & Popup
+### 9. Settings & Popup
 
-- `chrome.storage.sync` stores: `{ hygieneEnabled, sharedAddressEnabled, tableViewDefault, hidePromotionalGroups, blurCardImages }`.
+- `chrome.storage.sync` stores: `{ hygieneEnabled, sharedAddressEnabled, tableViewDefault, blurCardImages, autoScanEnabled, scanFast, cardColumns }`.
 - The popup reads settings on open and renders toggles. Changes are written via the background worker and broadcast to all open Deliveroo tabs via `chrome.tabs.sendMessage`.
-- The popup also displays DB stats (restaurant count, last updated) read from `chrome.storage.local`, written by the content script after each listing page load.
+- The popup also displays DB stats (restaurant count, last updated) and auto-scan progress, read from `chrome.storage.local`, written by the content script after each listing page load and on each scan tick.
 
 ---
 
@@ -225,9 +254,11 @@ better-roo/
 ```js
 {
   restaurantId: number,
-  score: number | null,   // 0–5, or null (exempt / not inspected / no match)
+  score: number | null,   // 0–5, or null (exempt / not inspected / no match / failed)
   ratingDate: timestamp | null,
-  cachedAt: timestamp,    // TTL: 7 days
+  cachedAt: timestamp,    // TTL: 14 days (or 24h if failed)
+  noRecord: boolean,      // true = FSA API returned zero results (confirmed no rating)
+  failed: boolean,        // true = network/API error (retry after 24h)
 }
 ```
 
@@ -248,7 +279,7 @@ better-roo/
 - Required headers: `Accept: application/json; version=2`, `x-api-version: 2`
 - Free, no API key required
 - Rating field: `RatingValue` (string `"0"`–`"5"`, `"Exempt"`, `"AwaitingInspection"`, etc.)
-- Rate limit: unknown — requests are batched per listing page load, not per keystroke
+- Rate limit: unknown — requests are concurrency-limited to batches of 5 in the background worker to avoid triggering rate limits on mass-expiry
 
 ---
 
