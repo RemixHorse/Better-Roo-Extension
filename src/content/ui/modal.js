@@ -12,100 +12,110 @@ export function showInfoModal() {
 
   const box = document.createElement('div');
   box.className = 'br-modal-box';
-  box.innerHTML = `
-    <div class="br-modal-header">
-      <span class="br-modal-title">Better Roo</span>
-      <button class="br-modal-close" aria-label="Close">✕</button>
-    </div>
-    <div class="br-modal-body">
-      <div class="br-modal-section">
-        <div class="br-modal-section-icon">⚙️</div>
-        <div>
-          <div class="br-modal-section-title">Settings</div>
-          <div class="br-modal-section-text">
-            Click the Better Roo icon in your browser's extension bar to open the settings menu.
-            From there you can toggle FSA hygiene badges, shared address badges, card image blurring,
-            the number of card columns, table view as default, and auto-scan.
-            You can also clear all cached data from the same menu.
-          </div>
-        </div>
-      </div>
-      <div class="br-modal-section">
-        <div class="br-modal-section-icon">🧪</div>
-        <div>
-          <div class="br-modal-section-title">FSA Hygiene Ratings</div>
-          <div class="br-modal-section-text">
-            Ratings come from the UK Food Standards Agency and appear as a badge on each card.
-            We look them up the first time you open a restaurant's menu — cards showing
-            <span class="br-modal-pill">FSA ?</span> haven't had their menu opened yet.
-            Tap any <span class="br-modal-pill">FSA ?</span> badge to open that menu and load its rating.
-            <span class="br-modal-pill br-modal-pill--dash">FSA —</span> means we checked but no rating was found (e.g. exempt or not yet inspected).
-          </div>
-        </div>
-      </div>
-      <div class="br-modal-section">
-        <div class="br-modal-section-icon">📍</div>
-        <div>
-          <div class="br-modal-section-title">Shared Address Detection</div>
-          <div class="br-modal-section-text">
-            If you've had a bad experience with one brand, or simply want to avoid an operator, you deserve to know when another listing is run by the same kitchen.<br>
-            Some restaurants are virtual brands — different names and menus operating from the same kitchen.
-            This is common with ghost kitchens, where a single operator lists multiple brands to appear
-            as separate choices.
-            A <span class="br-modal-pill" style="background:#FFD54F;color:#7F4900;">Shared Address</span> badge
-            on a card means another restaurant on the listing shares the same address.
-            Hover the badge to see which restaurants are co-located.<br><br>
-            <strong>Note:</strong> address data is only available after you've opened a restaurant's menu at least once.
-            The more menus you browse, the more matches we can surface.
-          </div>
-        </div>
-      </div>
-      <div class="br-modal-section">
-        <div class="br-modal-section-icon">🔽</div>
-        <div>
-          <div class="br-modal-section-title">Filters</div>
-          <div class="br-modal-section-text">
-            Use the filter bar to narrow results by FSA score, Deliveroo rating,
-            delivery time, or shared address status. In card view, non-matching
-            restaurants are dimmed rather than removed so you keep the full picture.
-          </div>
-        </div>
-      </div>
-      <div class="br-modal-section">
-        <div class="br-modal-section-icon">📋</div>
-        <div>
-          <div class="br-modal-section-title">Table View</div>
-          <div class="br-modal-section-text">
-            Switch to table view for a compact, sortable list of all restaurants —
-            including FSA score, rating, and delivery time at a glance.
-            Your preference is remembered between visits.
-          </div>
-        </div>
-      </div>
-      <div class="br-modal-section">
-        <div class="br-modal-section-icon">🔒</div>
-        <div>
-          <div class="br-modal-section-title">Your Data Stays on Your Device</div>
-          <div class="br-modal-section-text">
-            Better Roo stores everything — restaurant data, hygiene ratings, address matches — locally in your browser.
-            Nothing is ever sent to us or any third party. We have no servers, no analytics, no tracking, and no interest whatsoever in your data.
-            The only external requests made are to the UK Food Standards Agency API to fetch hygiene ratings, and directly to Deliveroo as you browse normally.
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="br-modal-footer">
-      <button class="br-modal-btn">Got it</button>
-    </div>
-  `;
 
-  box.querySelector('.br-modal-close').addEventListener('click', closeModal);
-  box.querySelector('.br-modal-btn').addEventListener('click', closeModal);
+  // Header
+  const header = el('div', 'br-modal-header');
+  header.appendChild(el('span', 'br-modal-title', 'Better Roo'));
+  const closeBtn = el('button', 'br-modal-close', '✕');
+  closeBtn.setAttribute('aria-label', 'Close');
+  header.appendChild(closeBtn);
+  box.appendChild(header);
+
+  // Body
+  const body = el('div', 'br-modal-body');
+
+  body.appendChild(section('⚙️', 'Settings', [
+    'Click the Better Roo icon in your browser\'s extension bar to open the settings menu. ',
+    'From there you can toggle FSA hygiene badges, shared address badges, card image blurring, ',
+    'the number of card columns, table view as default, and auto-scan. ',
+    'You can also clear all cached data from the same menu.',
+  ]));
+
+  body.appendChild(section('🧪', 'FSA Hygiene Ratings', [
+    'Ratings come from the UK Food Standards Agency and appear as a badge on each card. ',
+    'We look them up the first time you open a restaurant\'s menu — cards showing ',
+    pill('FSA ?'), ' haven\'t had their menu opened yet. ',
+    'Tap any ', pill('FSA ?'), ' badge to open that menu and load its rating. ',
+    pill('FSA —', 'br-modal-pill--dash'), ' means we checked but no rating was found (e.g. exempt or not yet inspected).',
+  ]));
+
+  body.appendChild(section('📍', 'Shared Address Detection', [
+    'If you\'ve had a bad experience with one brand, or simply want to avoid an operator, you deserve to know when another listing is run by the same kitchen. ',
+    'Some restaurants are virtual brands — different names and menus operating from the same kitchen. ',
+    'This is common with ghost kitchens, where a single operator lists multiple brands to appear as separate choices. ',
+    pillStyled('Shared Address', 'background:#FFD54F;color:#7F4900'), ' on a card means another restaurant shares the same address. ',
+    'Hover the badge to see which restaurants are co-located.\n\n',
+    strong('Note:'), ' address data is only available after you\'ve opened a restaurant\'s menu at least once. ',
+    'The more menus you browse, the more matches we can surface.',
+  ]));
+
+  body.appendChild(section('🔽', 'Filters', [
+    'Use the filter bar to narrow results by FSA score, Deliveroo rating, ',
+    'delivery time, or shared address status. Non-matching cards are hidden and the grid reflows.',
+  ]));
+
+  body.appendChild(section('📋', 'Table View', [
+    'Switch to table view for a compact, sortable list of all restaurants — ',
+    'including FSA score, rating, and delivery time at a glance. ',
+    'Your preference is remembered between visits.',
+  ]));
+
+  body.appendChild(section('🔒', 'Your Data Stays on Your Device', [
+    'Better Roo stores everything — restaurant data, hygiene ratings, address matches — locally in your browser. ',
+    'Nothing is ever sent to us or any third party. We have no servers, no analytics, no tracking, and no interest whatsoever in your data. ',
+    'The only external requests made are to the UK Food Standards Agency API to fetch hygiene ratings, and directly to Deliveroo as you browse normally.',
+  ]));
+
+  box.appendChild(body);
+
+  // Footer
+  const footer = el('div', 'br-modal-footer');
+  const gotIt = el('button', 'br-modal-btn', 'Got it');
+  footer.appendChild(gotIt);
+  box.appendChild(footer);
+
+  closeBtn.addEventListener('click', closeModal);
+  gotIt.addEventListener('click', closeModal);
 
   overlay.appendChild(box);
   document.body.appendChild(overlay);
 
   document.addEventListener('keydown', onKeyDown);
+}
+
+function el(tag, className, text) {
+  const e = document.createElement(tag);
+  if (className) e.className = className;
+  if (text) e.textContent = text;
+  return e;
+}
+
+function pill(text, extraClass) {
+  return el('span', extraClass ? `br-modal-pill ${extraClass}` : 'br-modal-pill', text);
+}
+
+function pillStyled(text, style) {
+  const s = el('span', 'br-modal-pill', text);
+  s.style.cssText = style;
+  return s;
+}
+
+function strong(text) {
+  return el('strong', '', text);
+}
+
+function section(icon, title, nodes) {
+  const wrap = el('div', 'br-modal-section');
+  wrap.appendChild(el('div', 'br-modal-section-icon', icon));
+  const inner = el('div');
+  inner.appendChild(el('div', 'br-modal-section-title', title));
+  const text = el('div', 'br-modal-section-text');
+  for (const node of nodes) {
+    text.appendChild(typeof node === 'string' ? document.createTextNode(node) : node);
+  }
+  inner.appendChild(text);
+  wrap.appendChild(inner);
+  return wrap;
 }
 
 function closeModal() {

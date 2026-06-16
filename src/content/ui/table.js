@@ -139,7 +139,7 @@ function buildThead() {
       const filterIcon = document.createElement('span');
       filterIcon.className = 'br-th-filter' + (isActive ? ' br-th-filter--active' : '');
       filterIcon.title = 'Filter';
-      filterIcon.innerHTML = funnelSvg();
+      filterIcon.appendChild(funnelSvg());
 
       const popover = document.createElement('div');
       popover.className = 'br-th-popover';
@@ -187,9 +187,16 @@ function closePopover() {
 }
 
 function funnelSvg() {
-  return `<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
-    <path d="M0.5 1.5h9L6 5.5V9L4 8V5.5L0.5 1.5z"/>
-  </svg>`;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', '10');
+  svg.setAttribute('height', '10');
+  svg.setAttribute('viewBox', '0 0 10 10');
+  svg.setAttribute('fill', 'currentColor');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M0.5 1.5h9L6 5.5V9L4 8V5.5L0.5 1.5z');
+  svg.appendChild(path);
+  return svg;
 }
 
 function isClosed(r) {
@@ -237,7 +244,9 @@ function buildTbody(pinFlags) {
 function makeDivider() {
   const tr = document.createElement('tr');
   tr.className = 'br-divider';
-  tr.innerHTML = `<td colspan="${COLS.length}"></td>`;
+  const td = document.createElement('td');
+  td.colSpan = COLS.length;
+  tr.appendChild(td);
   return tr;
 }
 
@@ -260,7 +269,7 @@ export function refreshTableRow(id, restaurant, fsaRating, sharedResult) {
 
   const fsaTd = tr.cells[6];
   if (fsaTd) {
-    fsaTd.innerHTML = '';
+    fsaTd.textContent = '';
     const pill = document.createElement('span');
     pill.className = 'br-tbl-fsa-pill';
     if (fsaRating?.score != null) {
@@ -278,7 +287,7 @@ export function refreshTableRow(id, restaurant, fsaRating, sharedResult) {
 
   const addressTd = tr.cells[7];
   if (addressTd) {
-    addressTd.innerHTML = '';
+    addressTd.textContent = '';
     if (sharedResult?.isSharedAddress) {
       const pill = document.createElement('span');
       pill.className = 'br-tbl-shared';

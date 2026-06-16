@@ -29,6 +29,7 @@ let _listingRestaurants = [];
 let _cachedOnly = [];
 let _sharedAddressResults = new Map();
 let _fsaRatings = new Map();
+let _expiredFsa = [];
 let _autoScanEnabled = false;
 let _scanFast = false;
 
@@ -56,6 +57,7 @@ chrome.runtime.onMessage.addListener((msg) => {
       document.querySelectorAll('#better-roo-table tr.br-scan-done').forEach(el => el.classList.remove('br-scan-done'));
       if (_autoScanEnabled && _listingRestaurants.length > 0) {
         _fsaRatings = new Map(); // reset in-memory ratings so queue rebuilds correctly
+        _expiredFsa = [];
         launchScanner();
       }
     });
@@ -139,13 +141,14 @@ async function handleListingPage() {
   const sharedAddressResults = detectSharedAddresses([...enriched, ...cachedOnly]);
 
   // Fetch FSA ratings — cache-first, background worker for misses
-  const fsaRatings = await getFsaRatings(enriched);
+  const { ratings: fsaRatings, expired: expiredFsa } = await getFsaRatings(enriched);
 
   // Store state for scanner callbacks
   _listingRestaurants = enriched;
   _cachedOnly = cachedOnly;
   _sharedAddressResults = sharedAddressResults;
   _fsaRatings = fsaRatings;
+  _expiredFsa = expiredFsa;
 
   // Cache stats for popup
   const allForStats = await getAllRestaurants();
@@ -173,7 +176,7 @@ async function handleListingPage() {
 
 async function launchScanner() {
   const allCached = await getAllRestaurants();
-  const queue = buildQueue(_listingRestaurants, allCached, _fsaRatings);
+  const queue = buildQueue(_listingRestaurants, allCached, _fsaRatings, _expiredFsa);
   if (queue.length === 0) return;
 
   startScanner({ queue, intervalMs: _scanFast ? 1000 : 3000, onTick: onScanTick, onComplete: onScanComplete });
@@ -181,7 +184,7 @@ async function launchScanner() {
 }
 
 async function onScanTick(result) {
-  const { restaurantId, restaurant, address1, score, ratingDate, skipped } = result;
+  const { restaurantId, restaurant, address1, score, ratingDate, noRecord, failed, skipped } = result;
 
   if (!skipped) {
     // Update restaurant if new data arrived
@@ -200,9 +203,10 @@ async function onScanTick(result) {
 
     // Update FSA cache
     if (score !== null) {
-      await upsertFsaCache({ restaurantId, score, ratingDate });
+      await upsertFsaCache({ restaurantId, score, ratingDate, noRecord: false, failed: false });
       _fsaRatings.set(restaurantId, { score, ratingDate });
     } else {
+      await upsertFsaCache({ restaurantId, score: null, ratingDate: null, noRecord: !!noRecord, failed: !!failed });
       // Ensure map has entry even for misses so queue won't re-add this restaurant
       if (!_fsaRatings.has(restaurantId)) _fsaRatings.set(restaurantId, { score: null, ratingDate: null });
     }

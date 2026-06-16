@@ -40,21 +40,28 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 // --- FSA lookup (existing) ---
 
 async function handleFsaLookup(restaurants) {
-  return Promise.all(restaurants.map(lookupOne));
+  // Concurrency-limited: process in batches of 5 to avoid rate-limiting
+  const results = [];
+  for (let i = 0; i < restaurants.length; i += 5) {
+    const batch = restaurants.slice(i, i + 5);
+    const batchResults = await Promise.all(batch.map(lookupOne));
+    results.push(...batchResults);
+  }
+  return results;
 }
 
 async function lookupOne({ id, name, address1 }) {
   const postcode = extractPostcode(address1);
-  if (!postcode) return { id, score: null, ratingDate: null };
+  if (!postcode) return { id, score: null, ratingDate: null, noRecord: true, failed: false };
 
   try {
     const url = `${FSA_API}/Establishments?name=${encodeURIComponent(name)}&address=${encodeURIComponent(postcode)}&pageSize=5`;
     const res = await fetch(url, { headers: FSA_HEADERS });
-    if (!res.ok) return { id, score: null, ratingDate: null };
+    if (!res.ok) return { id, score: null, ratingDate: null, noRecord: false, failed: true };
 
     const data = await res.json();
     const establishments = data.establishments ?? [];
-    if (establishments.length === 0) return { id, score: null, ratingDate: null };
+    if (establishments.length === 0) return { id, score: null, ratingDate: null, noRecord: true, failed: false };
 
     const streetNum = extractStreetNumber(address1);
     const best = streetNum
@@ -65,9 +72,11 @@ async function lookupOne({ id, name, address1 }) {
       id,
       score: parseRatingValue(best.RatingValue),
       ratingDate: best.RatingDate ? new Date(best.RatingDate).getTime() : null,
+      noRecord: false,
+      failed: false,
     };
   } catch {
-    return { id, score: null, ratingDate: null };
+    return { id, score: null, ratingDate: null, noRecord: false, failed: true };
   }
 }
 
@@ -76,14 +85,14 @@ async function lookupOne({ id, name, address1 }) {
 async function handleScanNext({ restaurantId, href, name, address1 }) {
   // Restaurant already has an address — FSA lookup only
   if (address1) {
-    const { score, ratingDate } = await lookupOne({ id: restaurantId, name, address1 });
-    return { restaurantId, address1, score, ratingDate, skipped: false };
+    const { score, ratingDate, noRecord, failed } = await lookupOne({ id: restaurantId, name, address1 });
+    return { restaurantId, address1, score, ratingDate, noRecord, failed, skipped: false };
   }
 
   // No address — fetch the Deliveroo menu page to get it
   const pageData = await fetchRestaurantPage(href);
   if (!pageData) {
-    return { restaurantId, address1: null, score: null, ratingDate: null, skipped: true };
+    return { restaurantId, address1: null, score: null, ratingDate: null, noRecord: false, failed: true, skipped: true };
   }
 
   const { restaurant, fsaRating } = pageData;
@@ -91,13 +100,17 @@ async function handleScanNext({ restaurantId, href, name, address1 }) {
   // If the page had no embedded FSA rating, attempt an API lookup now we have the address
   let score = fsaRating?.score ?? null;
   let ratingDate = fsaRating?.ratingDate ?? null;
+  let noRecord = false;
+  let failed = false;
   if (score === null && restaurant.address1) {
     const apiResult = await lookupOne({ id: restaurantId, name: restaurant.name, address1: restaurant.address1 });
     score = apiResult.score;
     ratingDate = apiResult.ratingDate;
+    noRecord = apiResult.noRecord;
+    failed = apiResult.failed;
   }
 
-  return { restaurantId, restaurant, address1: restaurant.address1, score, ratingDate, skipped: false };
+  return { restaurantId, restaurant, address1: restaurant.address1, score, ratingDate, noRecord, failed, skipped: false };
 }
 
 async function fetchRestaurantPage(href) {

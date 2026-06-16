@@ -25,10 +25,12 @@ async function init() {
   const scanStatsEl = document.getElementById('br-scan-stats');
 
   if (brStats) {
-    const when = brStats.lastUpdated
-      ? `· updated ${relativeTime(brStats.lastUpdated)}`
-      : '';
-    statsEl.innerHTML = `<strong>${brStats.restaurantCount}</strong> restaurants tracked ${when}`;
+    const when = brStats.lastUpdated ? ` · updated ${relativeTime(brStats.lastUpdated)}` : '';
+    statsEl.textContent = '';
+    const strong = document.createElement('strong');
+    strong.textContent = brStats.restaurantCount;
+    statsEl.appendChild(strong);
+    statsEl.appendChild(document.createTextNode(` restaurants tracked${when}`));
   } else {
     statsEl.textContent = 'No data yet — visit a Deliveroo listing page.';
   }
@@ -112,12 +114,14 @@ function renderScanStats(el, stats) {
     return;
   }
   el.style.display = '';
-  const lastSeen = stats.lastScannedAt ? `· last scanned ${relativeTime(stats.lastScannedAt)}` : '';
-  if (stats.scanning) {
-    el.innerHTML = `Auto-scan: <strong>${stats.scannedCount} / ${stats.totalCount}</strong> ${lastSeen}`;
-  } else {
-    el.innerHTML = `Auto-scan: <strong>${stats.scannedCount} / ${stats.totalCount}</strong> complete ${lastSeen}`;
-  }
+  const lastSeen = stats.lastScannedAt ? ` · last scanned ${relativeTime(stats.lastScannedAt)}` : '';
+  const suffix = stats.scanning ? '' : ' complete';
+  el.textContent = '';
+  el.appendChild(document.createTextNode('Auto-scan: '));
+  const strong = document.createElement('strong');
+  strong.textContent = `${stats.scannedCount} / ${stats.totalCount}`;
+  el.appendChild(strong);
+  el.appendChild(document.createTextNode(`${suffix}${lastSeen}`));
 }
 
 function relativeTime(ts) {

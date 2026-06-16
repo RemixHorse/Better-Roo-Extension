@@ -178,6 +178,18 @@ function closeChipPopover() {
   }
 }
 
+function chevronSvg() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', '10');
+  svg.setAttribute('height', '6');
+  svg.setAttribute('viewBox', '0 0 10 6');
+  svg.setAttribute('fill', 'currentColor');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M0 0l5 6 5-6z');
+  svg.appendChild(path);
+  return svg;
+}
+
 function buildBar() {
   const bar = document.createElement('div');
   bar.id = 'better-roo-bar';
@@ -230,7 +242,7 @@ function buildChip(def) {
 
   const chevron = document.createElement('span');
   chevron.className = 'br-chip-chevron';
-  chevron.innerHTML = `<svg width="10" height="6" viewBox="0 0 10 6" fill="currentColor"><path d="M0 0l5 6 5-6z"/></svg>`;
+  chevron.appendChild(chevronSvg());
 
   const popover = document.createElement('div');
   popover.className = 'br-chip-popover';
@@ -284,7 +296,7 @@ function buildSortChip() {
 
   const chevron = document.createElement('span');
   chevron.className = 'br-chip-chevron';
-  chevron.innerHTML = `<svg width="10" height="6" viewBox="0 0 10 6" fill="currentColor"><path d="M0 0l5 6 5-6z"/></svg>`;
+  chevron.appendChild(chevronSvg());
 
   const popover = document.createElement('div');
   popover.className = 'br-chip-popover';

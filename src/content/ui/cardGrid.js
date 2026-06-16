@@ -140,7 +140,7 @@ export function reconcileCardGrid(restaurants, sharedAddressResults, fsaRatings)
 
     const stats = card.querySelector('.br-card-stats');
     if (stats) {
-      stats.innerHTML = '';
+      stats.textContent = '';
       if (r.rating) stats.appendChild(stat(`★ ${r.rating}`));
       if (!isClosed && r.deliveryTimeMin) stats.appendChild(stat(`${r.deliveryTimeMin} min`));
       if (isClosed) stats.appendChild(stat('Closed', 'br-stat-closed'));

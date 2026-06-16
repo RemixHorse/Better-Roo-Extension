@@ -7,10 +7,11 @@ let _currentName = null;
 /**
  * Builds an ordered scan queue from listing + cached restaurant data.
  * P1: listing restaurants with address1 but no FSA result yet
+ * Expired: listing restaurants with address1 whose FSA cache has expired (stale score shown, needs refresh)
  * P2: listing restaurants without address1
  * P3: DB-cached restaurants (not in listing) without address1
  */
-export function buildQueue(listingRestaurants, allCached, fsaRatings) {
+export function buildQueue(listingRestaurants, allCached, fsaRatings, expired = []) {
   const listingIds = new Set(listingRestaurants.map(r => r.id));
   const p1 = [], p2 = [], p3 = [];
 
@@ -26,7 +27,11 @@ export function buildQueue(listingRestaurants, allCached, fsaRatings) {
     if (!listingIds.has(r.id) && !r.address1) p3.push(r);
   }
 
-  return [...p1, ...p2, ...p3];
+  // Deduplicate expired entries against P1/P2/P3
+  const queued = new Set([...p1, ...p2, ...p3].map(r => r.id));
+  const expiredFiltered = expired.filter(r => !queued.has(r.id));
+
+  return [...p1, ...expiredFiltered, ...p2, ...p3];
 }
 
 export function startScanner({ queue, intervalMs = 3000, onBeforeTick, onTick, onComplete }) {
