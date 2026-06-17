@@ -60,13 +60,17 @@ const manifest = {
     },
     {
       matches: ['*://deliveroo.co.uk/*'],
-      js: ['src/content/index.js'],
-      type: 'module',
+      js: ['src/content/loader.js'],
       run_at: 'document_end',
-      world: 'ISOLATED',
     },
   ],
   action: { ...base.action, default_popup: 'src/popup/popup.html' },
+  web_accessible_resources: [
+    {
+      resources: ['src/content/*.js', 'src/content/ui/*.js', 'src/shared/*.js'],
+      matches: ['*://deliveroo.co.uk/*'],
+    },
+  ],
 };
 
 writeFileSync(resolve(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
