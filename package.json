@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "cross-env BROWSER=chrome vite build && cross-env BROWSER=chrome vite build --config vite.content.config.js",
-    "build": "cross-env BROWSER=chrome vite build && cross-env BROWSER=chrome vite build --config vite.content.config.js",
-    "build:chrome": "cross-env BROWSER=chrome vite build && cross-env BROWSER=chrome vite build --config vite.content.config.js",
-    "build:firefox": "cross-env BROWSER=firefox vite build && cross-env BROWSER=firefox vite build --config vite.content.config.js",
+    "build": "cross-env BROWSER=chrome node scripts/build-unbundled.js",
+    "build:chrome": "cross-env BROWSER=chrome node scripts/build-unbundled.js",
+    "build:firefox": "cross-env BROWSER=firefox node scripts/build-unbundled.js",
     "build:xpi": "npm run build:firefox && node scripts/make-xpi.js",
     "build:all": "npm run build:chrome && npm run build:xpi",
+    "build:bundled": "cross-env BROWSER=chrome vite build && cross-env BROWSER=chrome vite build --config vite.content.config.js",
+    "build:bundled:firefox": "cross-env BROWSER=firefox vite build && cross-env BROWSER=firefox vite build --config vite.content.config.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
