@@ -1,9 +1,12 @@
 # Build Instructions
 
+## No build toolchain required
+
+The extension ships its source files directly — there is no bundling, minification, or code transformation. The "build" step is a simple file copy that generates a browser-specific `manifest.json` and packages the result.
+
 ## Prerequisites
 
-- **Node.js** v18 or later
-- **npm** (included with Node.js)
+- **Node.js** v18 or later (only needed for the copy script and XPI packaging)
 
 ## Setup
 
@@ -13,49 +16,60 @@ cd better-roo
 npm install
 ```
 
-## Building
+## Packaging
 
 ```bash
 npm run build:chrome    # Chrome extension → dist-chrome/
-npm run build:xpi      # Firefox extension → dist-firefox/ + better-roo.xpi
+npm run build:firefox   # Firefox extension → dist-firefox/
+npm run build:xpi       # Firefox extension → dist-firefox/ + better-roo.xpi
 ```
 
-## Testing
+The build script (`scripts/build-unbundled.js`) does the following:
+1. Copies `src/` into `dist-{browser}/src/`
+2. Copies icons to `dist-{browser}/icons/`
+3. Generates a `manifest.json` with browser-specific fields (service_worker vs scripts, gecko settings)
+
+**No code is transformed.** The files in `dist-{browser}/src/` are byte-for-byte identical to the files in `src/`.
+
+## Running Tests
 
 ```bash
-npm test               # Run test suite (54 tests)
+npm test
 ```
 
-## File Structure
+## Source Structure
 
 ```
 src/
 ├── background/
-│   └── index.js          # Service worker: FSA API, page fetcher
+│   └── index.js            # Service worker: FSA API, page fetcher
 ├── content/
-│   ├── early.js
-│   ├── index.js          # Main orchestrator
-│   ├── reader.js         # __NEXT_DATA__ parser
-│   ├── db.js             # IndexedDB wrapper
-│   ├── fsa.js            # FSA cache + lookup
-│   ├── scanner.js        # Auto-scan
-│   ├── listingSnapshot.js
-│   ├── addressNorm.js
-│   ├── timeAgo.js
-│   └── ui/               # UI components
+│   ├── early.js            # Runs at document_start (hides Deliveroo grid)
+│   ├── loader.js           # Classic script that bootstraps index.js via dynamic import
+│   ├── index.js            # Main orchestrator (ES module)
+│   ├── reader.js           # __NEXT_DATA__ parser
+│   ├── db.js               # IndexedDB wrapper
+│   ├── fsa.js              # FSA cache + lookup
+│   ├── scanner.js          # Auto-scan queue + loop
+│   ├── matcher.js          # Shared address detection
+│   ├── listingSnapshot.js  # localStorage two-pass cache
+│   ├── addressNorm.js      # Address utilities
+│   ├── timeAgo.js          # Relative time formatting
+│   └── ui/                 # UI components (filterBar, cardGrid, table, badges, modal)
 ├── shared/
-│   └── pageParser.js
-└── popup/
+│   └── pageParser.js       # Parsers shared between content + background
+├── popup/
+│   ├── popup.html
+│   └── popup.js
+└── icons/
 ```
 
-## Key Features Implemented
+## How it runs in the browser
 
-- **FSA Hygiene Ratings** — fetched from UK Food Standards Agency API, cached for 14 days
-- **Shared Address Detection** — groups restaurants at the same physical location
-- **Custom Card Grid** — sortable, filterable, with pinning support
-- **Compact Table View** — all restaurants in a single sortable table
-- **Auto-Scan** — background fetching of unvisited restaurants (one every 3 seconds)
-- **Two-Pass Listing Render** — localStorage snapshot for instant display, then fresh data loads in background
+- `early.js` — injected as a classic script at `document_start`
+- `loader.js` — injected as a classic script at `document_end`, uses `import()` to load `index.js` as an ES module
+- `index.js` and all its dependencies — loaded as ES modules via the browser's native module system
+- `background/index.js` — loaded as an ES module service worker (Chrome) or background script (Firefox)
 
 ## Documentation
 
